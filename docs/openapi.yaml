@@ -1,0 +1,1803 @@
+# ============================================================================
+# Call MSG - API Design Document
+# ============================================================================
+# Version: 1.0
+# Base URL: https://api.callmsg.com/v1
+# ============================================================================
+
+openapi: 3.0.3
+info:
+  title: Call MSG API
+  description: On-Demand Massage Service Platform API
+  version: 1.0.0
+  contact:
+    email: api@callmsg.com
+
+servers:
+  - url: https://api.callmsg.com/v1
+    description: Production
+  - url: https://staging-api.callmsg.com/v1
+    description: Staging
+  - url: http://localhost:3000/v1
+    description: Development
+
+# ============================================================================
+# AUTHENTICATION
+# ============================================================================
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - bearerAuth: []
+
+# ============================================================================
+# API ENDPOINTS
+# ============================================================================
+
+paths:
+  # ==========================================================================
+  # AUTH - 인증
+  # ==========================================================================
+  
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: 회원가입
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, phone, password, firstName, lastName]
+              properties:
+                email:
+                  type: string
+                  format: email
+                phone:
+                  type: string
+                  example: "+639123456789"
+                password:
+                  type: string
+                  minLength: 8
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+                role:
+                  type: string
+                  enum: [CUSTOMER, PROVIDER]
+                  default: CUSTOMER
+      responses:
+        201:
+          description: 회원가입 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      userId:
+                        type: string
+                      message:
+                        type: string
+        400:
+          description: 잘못된 요청
+        409:
+          description: 이미 존재하는 이메일/전화번호
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: 로그인
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        200:
+          description: 로그인 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      accessToken:
+                        type: string
+                      refreshToken:
+                        type: string
+                      expiresIn:
+                        type: integer
+                      user:
+                        $ref: '#/components/schemas/User'
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: 토큰 갱신
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        200:
+          description: 토큰 갱신 성공
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: 로그아웃
+      responses:
+        200:
+          description: 로그아웃 성공
+
+  /auth/verify-phone:
+    post:
+      tags: [Auth]
+      summary: 전화번호 인증 OTP 발송
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone]
+              properties:
+                phone:
+                  type: string
+      responses:
+        200:
+          description: OTP 발송 성공
+
+  /auth/verify-phone/confirm:
+    post:
+      tags: [Auth]
+      summary: 전화번호 인증 OTP 확인
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, otp]
+              properties:
+                phone:
+                  type: string
+                otp:
+                  type: string
+      responses:
+        200:
+          description: 인증 성공
+
+  /auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: 비밀번호 재설정 요청
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+      responses:
+        200:
+          description: 재설정 이메일 발송
+
+  /auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: 비밀번호 재설정
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password]
+              properties:
+                token:
+                  type: string
+                password:
+                  type: string
+      responses:
+        200:
+          description: 비밀번호 변경 성공
+
+  # ==========================================================================
+  # USERS - 사용자
+  # ==========================================================================
+
+  /users/me:
+    get:
+      tags: [Users]
+      summary: 내 프로필 조회
+      responses:
+        200:
+          description: 프로필 정보
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+    
+    patch:
+      tags: [Users]
+      summary: 내 프로필 수정
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+                gender:
+                  type: string
+                  enum: [MALE, FEMALE, OTHER]
+                dateOfBirth:
+                  type: string
+                  format: date
+                emergencyName:
+                  type: string
+                emergencyPhone:
+                  type: string
+                emergencyRelation:
+                  type: string
+      responses:
+        200:
+          description: 수정 성공
+
+  /users/me/avatar:
+    post:
+      tags: [Users]
+      summary: 프로필 이미지 업로드
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                avatar:
+                  type: string
+                  format: binary
+      responses:
+        200:
+          description: 업로드 성공
+
+  /users/me/password:
+    patch:
+      tags: [Users]
+      summary: 비밀번호 변경
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword]
+              properties:
+                currentPassword:
+                  type: string
+                newPassword:
+                  type: string
+      responses:
+        200:
+          description: 변경 성공
+
+  /users/me/fcm-token:
+    patch:
+      tags: [Users]
+      summary: FCM 토큰 업데이트
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fcmToken]
+              properties:
+                fcmToken:
+                  type: string
+      responses:
+        200:
+          description: 업데이트 성공
+
+  # ==========================================================================
+  # ADDRESSES - 주소
+  # ==========================================================================
+
+  /addresses:
+    get:
+      tags: [Addresses]
+      summary: 내 주소 목록
+      responses:
+        200:
+          description: 주소 목록
+    
+    post:
+      tags: [Addresses]
+      summary: 주소 추가
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddressInput'
+      responses:
+        201:
+          description: 추가 성공
+
+  /addresses/{addressId}:
+    patch:
+      tags: [Addresses]
+      summary: 주소 수정
+      parameters:
+        - name: addressId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddressInput'
+      responses:
+        200:
+          description: 수정 성공
+    
+    delete:
+      tags: [Addresses]
+      summary: 주소 삭제
+      parameters:
+        - name: addressId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        204:
+          description: 삭제 성공
+
+  # ==========================================================================
+  # PROVIDERS - 프로바이더
+  # ==========================================================================
+
+  /providers:
+    get:
+      tags: [Providers]
+      summary: 프로바이더 목록 (고객용)
+      security: []
+      parameters:
+        - name: latitude
+          in: query
+          schema:
+            type: number
+        - name: longitude
+          in: query
+          schema:
+            type: number
+        - name: serviceId
+          in: query
+          schema:
+            type: string
+        - name: category
+          in: query
+          schema:
+            type: string
+            enum: [THAI_MASSAGE, AROMA_MASSAGE, SWEDISH_MASSAGE, DEEP_TISSUE, BODY_SCRUB]
+        - name: gender
+          in: query
+          schema:
+            type: string
+            enum: [MALE, FEMALE]
+        - name: minRating
+          in: query
+          schema:
+            type: number
+        - name: minPrice
+          in: query
+          schema:
+            type: number
+        - name: maxPrice
+          in: query
+          schema:
+            type: number
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [rating, price_low, price_high, distance, reviews]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        200:
+          description: 프로바이더 목록
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProviderListItem'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+  /providers/{providerId}:
+    get:
+      tags: [Providers]
+      summary: 프로바이더 상세 (고객용)
+      security: []
+      parameters:
+        - name: providerId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: 프로바이더 상세
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderDetail'
+
+  /providers/{providerId}/reviews:
+    get:
+      tags: [Providers]
+      summary: 프로바이더 리뷰 목록
+      security: []
+      parameters:
+        - name: providerId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        200:
+          description: 리뷰 목록
+
+  /providers/{providerId}/availability:
+    get:
+      tags: [Providers]
+      summary: 프로바이더 예약 가능 시간
+      parameters:
+        - name: providerId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        200:
+          description: 가능 시간 슬롯
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  date:
+                    type: string
+                  slots:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        time:
+                          type: string
+                        available:
+                          type: boolean
+
+  # ==========================================================================
+  # PROVIDER (프로바이더 본인용)
+  # ==========================================================================
+
+  /provider/register:
+    post:
+      tags: [Provider]
+      summary: 프로바이더 등록 신청
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [displayName, serviceAreas]
+              properties:
+                displayName:
+                  type: string
+                bio:
+                  type: string
+                yearsOfExperience:
+                  type: integer
+                serviceAreas:
+                  type: array
+                  items:
+                    type: string
+                maxTravelDistance:
+                  type: integer
+      responses:
+        201:
+          description: 등록 신청 완료
+
+  /provider/me:
+    get:
+      tags: [Provider]
+      summary: 내 프로바이더 프로필
+      responses:
+        200:
+          description: 프로필 정보
+    
+    patch:
+      tags: [Provider]
+      summary: 내 프로바이더 프로필 수정
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                displayName:
+                  type: string
+                bio:
+                  type: string
+                yearsOfExperience:
+                  type: integer
+                serviceAreas:
+                  type: array
+                  items:
+                    type: string
+                maxTravelDistance:
+                  type: integer
+      responses:
+        200:
+          description: 수정 성공
+
+  /provider/documents:
+    get:
+      tags: [Provider]
+      summary: 내 서류 목록
+      responses:
+        200:
+          description: 서류 목록
+    
+    post:
+      tags: [Provider]
+      summary: 서류 업로드
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [type, file]
+              properties:
+                type:
+                  type: string
+                  enum: [GOVERNMENT_ID, CERTIFICATION, PROFILE_PHOTO, OTHER]
+                file:
+                  type: string
+                  format: binary
+                expiresAt:
+                  type: string
+                  format: date
+      responses:
+        201:
+          description: 업로드 성공
+
+  /provider/services:
+    get:
+      tags: [Provider]
+      summary: 내 서비스 설정
+      responses:
+        200:
+          description: 서비스 목록
+    
+    post:
+      tags: [Provider]
+      summary: 서비스 추가/수정
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [serviceId, price60]
+              properties:
+                serviceId:
+                  type: string
+                price60:
+                  type: number
+                price90:
+                  type: number
+                price120:
+                  type: number
+                isActive:
+                  type: boolean
+      responses:
+        200:
+          description: 설정 성공
+
+  /provider/availability:
+    get:
+      tags: [Provider]
+      summary: 내 가용 시간 설정
+      responses:
+        200:
+          description: 가용 시간
+    
+    put:
+      tags: [Provider]
+      summary: 가용 시간 설정
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+                properties:
+                  dayOfWeek:
+                    type: integer
+                  startTime:
+                    type: string
+                  endTime:
+                    type: string
+                  isAvailable:
+                    type: boolean
+      responses:
+        200:
+          description: 설정 성공
+
+  /provider/status:
+    patch:
+      tags: [Provider]
+      summary: 온라인/오프라인 상태 변경
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [ONLINE, OFFLINE]
+      responses:
+        200:
+          description: 변경 성공
+
+  /provider/location:
+    patch:
+      tags: [Provider]
+      summary: 현재 위치 업데이트
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [latitude, longitude]
+              properties:
+                latitude:
+                  type: number
+                longitude:
+                  type: number
+                accuracy:
+                  type: number
+      responses:
+        200:
+          description: 업데이트 성공
+
+  /provider/bank-account:
+    patch:
+      tags: [Provider]
+      summary: 정산 계좌 설정
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                bankName:
+                  type: string
+                bankAccountNumber:
+                  type: string
+                bankAccountName:
+                  type: string
+                gcashNumber:
+                  type: string
+                paymayaNumber:
+                  type: string
+      responses:
+        200:
+          description: 설정 성공
+
+  /provider/earnings:
+    get:
+      tags: [Provider]
+      summary: 수익 내역
+      parameters:
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        200:
+          description: 수익 내역
+
+  /provider/payouts:
+    get:
+      tags: [Provider]
+      summary: 출금 내역
+      responses:
+        200:
+          description: 출금 내역
+    
+    post:
+      tags: [Provider]
+      summary: 출금 요청
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount, method]
+              properties:
+                amount:
+                  type: number
+                method:
+                  type: string
+                  enum: [BANK_TRANSFER, GCASH, PAYMAYA]
+      responses:
+        201:
+          description: 요청 성공
+
+  # ==========================================================================
+  # SERVICES - 서비스
+  # ==========================================================================
+
+  /services:
+    get:
+      tags: [Services]
+      summary: 서비스 목록
+      security: []
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+      responses:
+        200:
+          description: 서비스 목록
+
+  /services/{serviceId}:
+    get:
+      tags: [Services]
+      summary: 서비스 상세
+      security: []
+      parameters:
+        - name: serviceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: 서비스 상세
+
+  # ==========================================================================
+  # BOOKINGS - 예약
+  # ==========================================================================
+
+  /bookings:
+    get:
+      tags: [Bookings]
+      summary: 내 예약 목록
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PENDING, ACCEPTED, IN_PROGRESS, COMPLETED, CANCELLED]
+        - name: role
+          in: query
+          description: customer 또는 provider (프로바이더가 자신의 예약 볼 때)
+          schema:
+            type: string
+            enum: [customer, provider]
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        200:
+          description: 예약 목록
+    
+    post:
+      tags: [Bookings]
+      summary: 예약 생성
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [providerId, serviceId, duration, scheduledAt, latitude, longitude, addressText]
+              properties:
+                providerId:
+                  type: string
+                serviceId:
+                  type: string
+                duration:
+                  type: integer
+                  enum: [60, 90, 120]
+                scheduledAt:
+                  type: string
+                  format: date-time
+                addressId:
+                  type: string
+                  description: 저장된 주소 ID (선택)
+                latitude:
+                  type: number
+                longitude:
+                  type: number
+                addressText:
+                  type: string
+                addressNotes:
+                  type: string
+                customerNotes:
+                  type: string
+                promoCode:
+                  type: string
+      responses:
+        201:
+          description: 예약 생성 성공 (결제 대기)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  booking:
+                    $ref: '#/components/schemas/Booking'
+                  payment:
+                    type: object
+                    properties:
+                      clientKey:
+                        type: string
+                      paymentIntentId:
+                        type: string
+
+  /bookings/{bookingId}:
+    get:
+      tags: [Bookings]
+      summary: 예약 상세
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: 예약 상세
+
+  /bookings/{bookingId}/cancel:
+    post:
+      tags: [Bookings]
+      summary: 예약 취소
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        200:
+          description: 취소 성공
+
+  /bookings/{bookingId}/accept:
+    post:
+      tags: [Bookings]
+      summary: 예약 수락 (프로바이더)
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: 수락 성공
+
+  /bookings/{bookingId}/reject:
+    post:
+      tags: [Bookings]
+      summary: 예약 거절 (프로바이더)
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        200:
+          description: 거절 성공
+
+  /bookings/{bookingId}/status:
+    patch:
+      tags: [Bookings]
+      summary: 예약 상태 변경 (프로바이더)
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [PROVIDER_EN_ROUTE, PROVIDER_ARRIVED, IN_PROGRESS, COMPLETED]
+      responses:
+        200:
+          description: 변경 성공
+
+  /bookings/{bookingId}/location:
+    get:
+      tags: [Bookings]
+      summary: 프로바이더 실시간 위치 (고객용)
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: 위치 정보
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  latitude:
+                    type: number
+                  longitude:
+                    type: number
+                  eta:
+                    type: integer
+                    description: 도착 예상 시간 (분)
+                  lastUpdatedAt:
+                    type: string
+                    format: date-time
+    
+    post:
+      tags: [Bookings]
+      summary: 위치 업데이트 (프로바이더)
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [latitude, longitude]
+              properties:
+                latitude:
+                  type: number
+                longitude:
+                  type: number
+                accuracy:
+                  type: number
+      responses:
+        200:
+          description: 업데이트 성공
+
+  /bookings/{bookingId}/sos:
+    post:
+      tags: [Bookings]
+      summary: SOS 신고
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                latitude:
+                  type: number
+                longitude:
+                  type: number
+                message:
+                  type: string
+      responses:
+        200:
+          description: SOS 접수 완료
+
+  # ==========================================================================
+  # PAYMENTS - 결제
+  # ==========================================================================
+
+  /payments/webhook:
+    post:
+      tags: [Payments]
+      summary: PayMongo Webhook
+      security: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        200:
+          description: Webhook 처리 성공
+
+  /payments/{paymentId}:
+    get:
+      tags: [Payments]
+      summary: 결제 상세
+      parameters:
+        - name: paymentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: 결제 상세
+
+  # ==========================================================================
+  # REVIEWS - 리뷰
+  # ==========================================================================
+
+  /reviews:
+    post:
+      tags: [Reviews]
+      summary: 리뷰 작성
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bookingId, rating]
+              properties:
+                bookingId:
+                  type: string
+                rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                comment:
+                  type: string
+      responses:
+        201:
+          description: 작성 성공
+
+  /reviews/{reviewId}/reply:
+    post:
+      tags: [Reviews]
+      summary: 리뷰 답글 (프로바이더)
+      parameters:
+        - name: reviewId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reply]
+              properties:
+                reply:
+                  type: string
+      responses:
+        200:
+          description: 답글 성공
+
+  # ==========================================================================
+  # REPORTS - 신고
+  # ==========================================================================
+
+  /reports:
+    post:
+      tags: [Reports]
+      summary: 신고 접수
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reportedId, type, description]
+              properties:
+                bookingId:
+                  type: string
+                reportedId:
+                  type: string
+                type:
+                  type: string
+                  enum: [HARASSMENT, VIOLENCE, FRAUD, NO_SHOW, LATE_ARRIVAL, SERVICE_QUALITY, UNPROFESSIONAL, OTHER]
+                description:
+                  type: string
+      responses:
+        201:
+          description: 접수 성공
+
+  /reports:upload-evidence:
+    post:
+      tags: [Reports]
+      summary: 신고 증거 파일 업로드
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        200:
+          description: 업로드 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+
+  # ==========================================================================
+  # NOTIFICATIONS - 알림
+  # ==========================================================================
+
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: 알림 목록
+      parameters:
+        - name: unreadOnly
+          in: query
+          schema:
+            type: boolean
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        200:
+          description: 알림 목록
+
+  /notifications/{notificationId}/read:
+    patch:
+      tags: [Notifications]
+      summary: 알림 읽음 처리
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: 처리 성공
+
+  /notifications/read-all:
+    patch:
+      tags: [Notifications]
+      summary: 모든 알림 읽음 처리
+      responses:
+        200:
+          description: 처리 성공
+
+  # ==========================================================================
+  # SERVICE AREAS - 서비스 지역
+  # ==========================================================================
+
+  /service-areas:
+    get:
+      tags: [ServiceAreas]
+      summary: 서비스 지역 목록
+      security: []
+      responses:
+        200:
+          description: 지역 목록
+
+  # ==========================================================================
+  # PROMOTIONS - 프로모션
+  # ==========================================================================
+
+  /promotions/validate:
+    post:
+      tags: [Promotions]
+      summary: 프로모션 코드 유효성 검사
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, amount]
+              properties:
+                code:
+                  type: string
+                amount:
+                  type: number
+      responses:
+        200:
+          description: 유효한 코드
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valid:
+                    type: boolean
+                  discount:
+                    type: number
+                  message:
+                    type: string
+
+  # ==========================================================================
+  # ADMIN - 관리자
+  # ==========================================================================
+
+  /admin/dashboard:
+    get:
+      tags: [Admin]
+      summary: 대시보드 통계
+      responses:
+        200:
+          description: 통계 데이터
+
+  /admin/providers:
+    get:
+      tags: [Admin]
+      summary: 프로바이더 목록 (관리자)
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PENDING, APPROVED, REJECTED, SUSPENDED]
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        200:
+          description: 프로바이더 목록
+
+  /admin/providers/{providerId}:
+    get:
+      tags: [Admin]
+      summary: 프로바이더 상세 (관리자)
+      parameters:
+        - name: providerId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: 프로바이더 상세
+
+  /admin/providers/{providerId}/approve:
+    post:
+      tags: [Admin]
+      summary: 프로바이더 승인
+      parameters:
+        - name: providerId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: 승인 성공
+
+  /admin/providers/{providerId}/reject:
+    post:
+      tags: [Admin]
+      summary: 프로바이더 거절
+      parameters:
+        - name: providerId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+      responses:
+        200:
+          description: 거절 성공
+
+  /admin/providers/{providerId}/suspend:
+    post:
+      tags: [Admin]
+      summary: 프로바이더 정지
+      parameters:
+        - name: providerId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                until:
+                  type: string
+                  format: date-time
+      responses:
+        200:
+          description: 정지 성공
+
+  /admin/bookings:
+    get:
+      tags: [Admin]
+      summary: 예약 목록 (관리자)
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        200:
+          description: 예약 목록
+
+  /admin/payouts:
+    get:
+      tags: [Admin]
+      summary: 출금 요청 목록
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PENDING, PROCESSING, COMPLETED, FAILED]
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        200:
+          description: 출금 요청 목록
+
+  /admin/payouts/{payoutId}/process:
+    post:
+      tags: [Admin]
+      summary: 출금 처리
+      parameters:
+        - name: payoutId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                referenceNumber:
+                  type: string
+      responses:
+        200:
+          description: 처리 성공
+
+  /admin/reports:
+    get:
+      tags: [Admin]
+      summary: 신고 목록
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PENDING, INVESTIGATING, RESOLVED, DISMISSED]
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [LOW, MEDIUM, HIGH, CRITICAL]
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        200:
+          description: 신고 목록
+
+  /admin/reports/{reportId}:
+    get:
+      tags: [Admin]
+      summary: 신고 상세
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          description: 신고 상세
+
+  /admin/reports/{reportId}/resolve:
+    post:
+      tags: [Admin]
+      summary: 신고 처리
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [resolution, actionTaken]
+              properties:
+                resolution:
+                  type: string
+                actionTaken:
+                  type: string
+      responses:
+        200:
+          description: 처리 성공
+
+# ============================================================================
+# SCHEMAS
+# ============================================================================
+
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        avatarUrl:
+          type: string
+        gender:
+          type: string
+        role:
+          type: string
+        status:
+          type: string
+        phoneVerified:
+          type: boolean
+        emailVerified:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    AddressInput:
+      type: object
+      required: [label, addressLine1, city, latitude, longitude]
+      properties:
+        label:
+          type: string
+        addressLine1:
+          type: string
+        addressLine2:
+          type: string
+        city:
+          type: string
+        province:
+          type: string
+        postalCode:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+        isDefault:
+          type: boolean
+        notes:
+          type: string
+
+    ProviderListItem:
+      type: object
+      properties:
+        id:
+          type: string
+        displayName:
+          type: string
+        avatarUrl:
+          type: string
+        rating:
+          type: number
+        totalRatings:
+          type: integer
+        completedBookings:
+          type: integer
+        yearsOfExperience:
+          type: integer
+        distance:
+          type: number
+          description: km
+        services:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              price60:
+                type: number
+
+    ProviderDetail:
+      type: object
+      properties:
+        id:
+          type: string
+        displayName:
+          type: string
+        bio:
+          type: string
+        avatarUrl:
+          type: string
+        gender:
+          type: string
+        rating:
+          type: number
+        totalRatings:
+          type: integer
+        completedBookings:
+          type: integer
+        yearsOfExperience:
+          type: integer
+        serviceAreas:
+          type: array
+          items:
+            type: string
+        services:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              description:
+                type: string
+              price60:
+                type: number
+              price90:
+                type: number
+              price120:
+                type: number
+        availability:
+          type: array
+          items:
+            type: object
+            properties:
+              dayOfWeek:
+                type: integer
+              startTime:
+                type: string
+              endTime:
+                type: string
+
+    Booking:
+      type: object
+      properties:
+        id:
+          type: string
+        bookingNumber:
+          type: string
+        status:
+          type: string
+        scheduledAt:
+          type: string
+          format: date-time
+        service:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+        duration:
+          type: integer
+        totalAmount:
+          type: number
+        provider:
+          type: object
+          properties:
+            id:
+              type: string
+            displayName:
+              type: string
+            avatarUrl:
+              type: string
+            phone:
+              type: string
+        customer:
+          type: object
+          properties:
+            id:
+              type: string
+            firstName:
+              type: string
+            lastName:
+              type: string
+            phone:
+              type: string
+        addressText:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer

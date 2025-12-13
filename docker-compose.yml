@@ -1,0 +1,104 @@
+# ============================================================================
+# Call MSG - Docker Compose (Development)
+# ============================================================================
+# Usage: docker-compose up -d
+# ============================================================================
+
+version: '3.8'
+
+services:
+  # ==========================================================================
+  # PostgreSQL Database
+  # ==========================================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: callmsg-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: callmsg
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================================================
+  # Redis
+  # ==========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: callmsg-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================================================
+  # API Server (Optional - for container testing)
+  # ==========================================================================
+  # api:
+  #   build:
+  #     context: ./apps/api
+  #     dockerfile: Dockerfile
+  #   container_name: callmsg-api
+  #   restart: unless-stopped
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     NODE_ENV: development
+  #     PORT: 3000
+  #     DATABASE_URL: postgresql://postgres:password@postgres:5432/callmsg?schema=public
+  #     REDIS_URL: redis://redis:6379
+  #     JWT_SECRET: dev-jwt-secret-change-in-production
+  #     JWT_REFRESH_SECRET: dev-refresh-secret-change-in-production
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+
+  # ==========================================================================
+  # Adminer (Database Admin UI) - Optional
+  # ==========================================================================
+  adminer:
+    image: adminer
+    container_name: callmsg-adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+
+  # ==========================================================================
+  # Redis Commander (Redis Admin UI) - Optional
+  # ==========================================================================
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: callmsg-redis-commander
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    depends_on:
+      - redis
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  default:
+    name: callmsg-network

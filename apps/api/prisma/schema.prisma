@@ -1,0 +1,808 @@
+// ============================================================================
+// Call MSG - Database Schema (Prisma)
+// ============================================================================
+// Version: 1.0
+// Database: PostgreSQL
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum UserRole {
+  CUSTOMER
+  PROVIDER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum ProviderStatus {
+  PENDING      // 심사 대기
+  APPROVED     // 승인됨
+  REJECTED     // 거절됨
+  SUSPENDED    // 정지됨
+}
+
+enum ProviderOnlineStatus {
+  ONLINE
+  OFFLINE
+  BUSY         // 서비스 중
+}
+
+enum DocumentType {
+  GOVERNMENT_ID    // 정부 발급 신분증
+  CERTIFICATION    // 자격증
+  PROFILE_PHOTO    // 프로필 사진
+  OTHER
+}
+
+enum DocumentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum BookingStatus {
+  PENDING          // 대기 중 (프로바이더 수락 전)
+  ACCEPTED         // 수락됨
+  REJECTED         // 거절됨
+  PROVIDER_EN_ROUTE // 프로바이더 이동 중
+  PROVIDER_ARRIVED  // 프로바이더 도착
+  IN_PROGRESS      // 서비스 진행 중
+  COMPLETED        // 완료
+  CANCELLED        // 취소됨
+  NO_SHOW          // 노쇼
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum PaymentMethod {
+  CREDIT_CARD
+  DEBIT_CARD
+  GCASH
+  PAYMAYA
+  GRAB_PAY
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum PayoutMethod {
+  BANK_TRANSFER
+  GCASH
+  PAYMAYA
+}
+
+enum ReportType {
+  HARASSMENT
+  VIOLENCE
+  FRAUD
+  NO_SHOW
+  LATE_ARRIVAL
+  SERVICE_QUALITY
+  UNPROFESSIONAL
+  OTHER
+}
+
+enum ReportStatus {
+  PENDING
+  INVESTIGATING
+  RESOLVED
+  DISMISSED
+}
+
+enum ReportSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum NotificationType {
+  BOOKING_REQUEST
+  BOOKING_ACCEPTED
+  BOOKING_REJECTED
+  BOOKING_CANCELLED
+  PROVIDER_EN_ROUTE
+  PROVIDER_ARRIVED
+  SERVICE_STARTED
+  SERVICE_COMPLETED
+  PAYMENT_RECEIVED
+  PAYOUT_PROCESSED
+  REVIEW_RECEIVED
+  REPORT_UPDATE
+  PROMOTION
+  SYSTEM
+}
+
+enum ServiceCategory {
+  THAI_MASSAGE
+  AROMA_MASSAGE
+  SWEDISH_MASSAGE
+  DEEP_TISSUE
+  BODY_SCRUB
+  COMBINATION
+}
+
+// ============================================================================
+// MODELS
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// User - 모든 사용자 (고객, 프로바이더, 관리자)
+// ----------------------------------------------------------------------------
+model User {
+  id                String      @id @default(cuid())
+  email             String      @unique
+  phone             String      @unique
+  phoneVerified     Boolean     @default(false)
+  emailVerified     Boolean     @default(false)
+  passwordHash      String
+  
+  firstName         String
+  lastName          String
+  avatarUrl         String?
+  gender            Gender?
+  dateOfBirth       DateTime?
+  
+  role              UserRole    @default(CUSTOMER)
+  status            UserStatus  @default(ACTIVE)
+  
+  // 긴급 연락처
+  emergencyName     String?
+  emergencyPhone    String?
+  emergencyRelation String?
+  
+  // FCM 토큰 (푸시 알림)
+  fcmToken          String?
+  
+  // 메타데이터
+  lastLoginAt       DateTime?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  deletedAt         DateTime?
+  
+  // Relations
+  provider          Provider?
+  addresses         Address[]
+  bookingsAsCustomer Booking[]  @relation("CustomerBookings")
+  reviewsWritten    Review[]    @relation("ReviewAuthor")
+  reviewsReceived   Review[]    @relation("ReviewTarget")
+  reportsSubmitted  Report[]    @relation("Reporter")
+  reportsReceived   Report[]    @relation("Reported")
+  notifications     Notification[]
+  refreshTokens     RefreshToken[]
+  
+  @@index([email])
+  @@index([phone])
+  @@index([role, status])
+}
+
+// ----------------------------------------------------------------------------
+// RefreshToken - JWT 리프레시 토큰
+// ----------------------------------------------------------------------------
+model RefreshToken {
+  id          String   @id @default(cuid())
+  token       String   @unique
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  revokedAt   DateTime?
+  
+  @@index([userId])
+  @@index([token])
+}
+
+// ----------------------------------------------------------------------------
+// Address - 사용자 주소
+// ----------------------------------------------------------------------------
+model Address {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  label         String   // 집, 회사, 호텔 등
+  addressLine1  String
+  addressLine2  String?
+  city          String
+  province      String?
+  postalCode    String?
+  
+  latitude      Float
+  longitude     Float
+  
+  isDefault     Boolean  @default(false)
+  notes         String?  // 호텔 룸 번호, 콘도 유닛 등
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  bookings      Booking[]
+  
+  @@index([userId])
+}
+
+// ----------------------------------------------------------------------------
+// Provider - 프로바이더 (테라피스트) 프로필
+// ----------------------------------------------------------------------------
+model Provider {
+  id                  String               @id @default(cuid())
+  userId              String               @unique
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // 프로필
+  displayName         String
+  bio                 String?
+  yearsOfExperience   Int                  @default(0)
+  
+  // 상태
+  status              ProviderStatus       @default(PENDING)
+  onlineStatus        ProviderOnlineStatus @default(OFFLINE)
+  
+  // 통계
+  rating              Float                @default(0)
+  totalRatings        Int                  @default(0)
+  completedBookings   Int                  @default(0)
+  cancelledBookings   Int                  @default(0)
+  
+  // 위치 (마지막 알려진 위치)
+  lastLatitude        Float?
+  lastLongitude       Float?
+  lastLocationAt      DateTime?
+  
+  // 서비스 지역
+  serviceAreas        String[]             // ["makati", "bgc", "pasay"]
+  maxTravelDistance   Int                  @default(10) // km
+  
+  // 정산 정보
+  bankName            String?
+  bankAccountNumber   String?
+  bankAccountName     String?
+  gcashNumber         String?
+  paymayaNumber       String?
+  
+  // 정산 잔액
+  balance             Float                @default(0)
+  totalEarnings       Float                @default(0)
+  
+  // 심사 관련
+  approvedAt          DateTime?
+  approvedBy          String?
+  rejectedAt          DateTime?
+  rejectedReason      String?
+  
+  // 제재 관련
+  warningCount        Int                  @default(0)
+  suspendedAt         DateTime?
+  suspendedUntil      DateTime?
+  suspendedReason     String?
+  
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  
+  // Relations
+  documents           ProviderDocument[]
+  services            ProviderService[]
+  availability        ProviderAvailability[]
+  bookings            Booking[]            @relation("ProviderBookings")
+  payouts             Payout[]
+  locationLogs        LocationLog[]
+  
+  @@index([status])
+  @@index([onlineStatus])
+  @@index([rating])
+}
+
+// ----------------------------------------------------------------------------
+// ProviderDocument - 프로바이더 서류
+// ----------------------------------------------------------------------------
+model ProviderDocument {
+  id          String         @id @default(cuid())
+  providerId  String
+  provider    Provider       @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  
+  type        DocumentType
+  fileUrl     String
+  fileName    String
+  
+  status      DocumentStatus @default(PENDING)
+  reviewedAt  DateTime?
+  reviewedBy  String?
+  reviewNote  String?
+  
+  expiresAt   DateTime?      // 자격증 만료일
+  
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  
+  @@index([providerId, type])
+}
+
+// ----------------------------------------------------------------------------
+// Service - 서비스 종류
+// ----------------------------------------------------------------------------
+model Service {
+  id            String          @id @default(cuid())
+  
+  name          String
+  nameKo        String?         // 한국어 이름
+  description   String
+  descriptionKo String?
+  
+  category      ServiceCategory
+  
+  // 기본 옵션
+  baseDuration  Int             // 분 단위 (60, 90, 120)
+  basePrice     Float           // 기본 가격
+  
+  // 표시
+  imageUrl      String?
+  isActive      Boolean         @default(true)
+  sortOrder     Int             @default(0)
+  
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  
+  // Relations
+  providerServices ProviderService[]
+  bookings         Booking[]
+  
+  @@index([category])
+  @@index([isActive])
+}
+
+// ----------------------------------------------------------------------------
+// ProviderService - 프로바이더별 서비스 설정
+// ----------------------------------------------------------------------------
+model ProviderService {
+  id          String   @id @default(cuid())
+  providerId  String
+  provider    Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  serviceId   String
+  service     Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  
+  // 프로바이더 커스텀 가격
+  price60     Float    // 60분 가격
+  price90     Float?   // 90분 가격
+  price120    Float?   // 120분 가격
+  
+  isActive    Boolean  @default(true)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([providerId, serviceId])
+  @@index([providerId])
+  @@index([serviceId])
+}
+
+// ----------------------------------------------------------------------------
+// ProviderAvailability - 프로바이더 가용 시간
+// ----------------------------------------------------------------------------
+model ProviderAvailability {
+  id          String   @id @default(cuid())
+  providerId  String
+  provider    Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  
+  dayOfWeek   Int      // 0=일, 1=월, ..., 6=토
+  startTime   String   // "09:00"
+  endTime     String   // "22:00"
+  isAvailable Boolean  @default(true)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([providerId, dayOfWeek])
+  @@index([providerId])
+}
+
+// ----------------------------------------------------------------------------
+// Booking - 예약
+// ----------------------------------------------------------------------------
+model Booking {
+  id              String        @id @default(cuid())
+  bookingNumber   String        @unique // 예약 번호 (표시용)
+  
+  // 참여자
+  customerId      String
+  customer        User          @relation("CustomerBookings", fields: [customerId], references: [id])
+  providerId      String
+  provider        Provider      @relation("ProviderBookings", fields: [providerId], references: [id])
+  
+  // 서비스
+  serviceId       String
+  service         Service       @relation(fields: [serviceId], references: [id])
+  duration        Int           // 분 단위
+  
+  // 일정
+  scheduledAt     DateTime      // 예약 날짜/시간
+  
+  // 위치
+  addressId       String?
+  address         Address?      @relation(fields: [addressId], references: [id])
+  addressText     String        // 주소 텍스트 (스냅샷)
+  addressNotes    String?
+  latitude        Float
+  longitude       Float
+  
+  // 금액
+  serviceAmount   Float         // 서비스 금액
+  travelFee       Float         @default(0) // 출장비
+  discount        Float         @default(0) // 할인
+  totalAmount     Float         // 총 결제 금액
+  
+  // 수수료
+  platformFee     Float         // 플랫폼 수수료
+  providerEarning Float         // 프로바이더 수익
+  
+  // 상태
+  status          BookingStatus @default(PENDING)
+  
+  // 타임스탬프
+  acceptedAt      DateTime?
+  rejectedAt      DateTime?
+  rejectedReason  String?
+  enRouteAt       DateTime?
+  arrivedAt       DateTime?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  cancelledAt     DateTime?
+  cancelledBy     String?       // 취소한 사람 ID
+  cancelReason    String?
+  
+  // 고객 메모
+  customerNotes   String?
+  
+  // 프로바이더 메모
+  providerNotes   String?
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  // Relations
+  payment         Payment?
+  review          Review?
+  reports         Report[]
+  locationLogs    LocationLog[]
+  
+  @@index([customerId])
+  @@index([providerId])
+  @@index([status])
+  @@index([scheduledAt])
+  @@index([bookingNumber])
+}
+
+// ----------------------------------------------------------------------------
+// Payment - 결제
+// ----------------------------------------------------------------------------
+model Payment {
+  id                  String        @id @default(cuid())
+  bookingId           String        @unique
+  booking             Booking       @relation(fields: [bookingId], references: [id])
+  
+  // 금액
+  amount              Float
+  currency            String        @default("PHP")
+  
+  // PayMongo 관련
+  paymongoPaymentId   String?       @unique
+  paymongoIntentId    String?
+  
+  // 결제 정보
+  method              PaymentMethod
+  status              PaymentStatus @default(PENDING)
+  
+  // 카드 정보 (마스킹)
+  cardLast4           String?
+  cardBrand           String?
+  
+  // 타임스탬프
+  paidAt              DateTime?
+  failedAt            DateTime?
+  failureReason       String?
+  
+  // 환불
+  refundedAmount      Float         @default(0)
+  refundedAt          DateTime?
+  refundReason        String?
+  
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  
+  @@index([status])
+  @@index([paymongoPaymentId])
+}
+
+// ----------------------------------------------------------------------------
+// Payout - 프로바이더 정산/출금
+// ----------------------------------------------------------------------------
+model Payout {
+  id              String       @id @default(cuid())
+  providerId      String
+  provider        Provider     @relation(fields: [providerId], references: [id])
+  
+  amount          Float
+  fee             Float        @default(0) // 출금 수수료
+  netAmount       Float        // 실수령액
+  
+  method          PayoutMethod
+  
+  // 계좌 정보 (스냅샷)
+  accountInfo     String       // 은행명 + 계좌번호 마스킹
+  
+  status          PayoutStatus @default(PENDING)
+  
+  processedAt     DateTime?
+  processedBy     String?
+  failedAt        DateTime?
+  failureReason   String?
+  
+  // 참조 번호
+  referenceNumber String?
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  
+  @@index([providerId])
+  @@index([status])
+}
+
+// ----------------------------------------------------------------------------
+// Review - 리뷰
+// ----------------------------------------------------------------------------
+model Review {
+  id          String   @id @default(cuid())
+  bookingId   String   @unique
+  booking     Booking  @relation(fields: [bookingId], references: [id])
+  
+  authorId    String
+  author      User     @relation("ReviewAuthor", fields: [authorId], references: [id])
+  targetId    String
+  target      User     @relation("ReviewTarget", fields: [targetId], references: [id])
+  
+  rating      Int      // 1-5
+  comment     String?
+  
+  // 프로바이더 답글
+  reply       String?
+  repliedAt   DateTime?
+  
+  // 표시 여부
+  isVisible   Boolean  @default(true)
+  hiddenAt    DateTime?
+  hiddenReason String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([authorId])
+  @@index([targetId])
+  @@index([rating])
+}
+
+// ----------------------------------------------------------------------------
+// Report - 신고
+// ----------------------------------------------------------------------------
+model Report {
+  id            String         @id @default(cuid())
+  
+  bookingId     String?
+  booking       Booking?       @relation(fields: [bookingId], references: [id])
+  
+  reporterId    String
+  reporter      User           @relation("Reporter", fields: [reporterId], references: [id])
+  reportedId    String
+  reported      User           @relation("Reported", fields: [reportedId], references: [id])
+  
+  type          ReportType
+  severity      ReportSeverity @default(MEDIUM)
+  
+  description   String
+  evidenceUrls  String[]       // 증거 파일 URLs
+  
+  status        ReportStatus   @default(PENDING)
+  
+  // 처리 내역
+  assignedTo    String?
+  assignedAt    DateTime?
+  
+  resolution    String?
+  resolvedAt    DateTime?
+  resolvedBy    String?
+  
+  // 조치 내역
+  actionTaken   String?
+  
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  
+  @@index([reporterId])
+  @@index([reportedId])
+  @@index([status])
+  @@index([severity])
+}
+
+// ----------------------------------------------------------------------------
+// LocationLog - 위치 로그 (실시간 추적)
+// ----------------------------------------------------------------------------
+model LocationLog {
+  id          String   @id @default(cuid())
+  
+  bookingId   String
+  booking     Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  providerId  String
+  provider    Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  
+  latitude    Float
+  longitude   Float
+  accuracy    Float?   // 위치 정확도 (미터)
+  
+  timestamp   DateTime @default(now())
+  
+  @@index([bookingId])
+  @@index([providerId])
+  @@index([timestamp])
+}
+
+// ----------------------------------------------------------------------------
+// Notification - 알림
+// ----------------------------------------------------------------------------
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  type      NotificationType
+  title     String
+  body      String
+  data      Json?            // 추가 데이터 (bookingId 등)
+  
+  isRead    Boolean          @default(false)
+  readAt    DateTime?
+  
+  // 푸시 발송 여부
+  pushSent  Boolean          @default(false)
+  pushSentAt DateTime?
+  
+  createdAt DateTime         @default(now())
+  
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+// ----------------------------------------------------------------------------
+// ServiceArea - 서비스 지역
+// ----------------------------------------------------------------------------
+model ServiceArea {
+  id          String   @id @default(cuid())
+  
+  name        String   @unique // makati, bgc, pasay 등
+  displayName String
+  
+  // 범위 (폴리곤 또는 중심점+반경)
+  centerLat   Float
+  centerLng   Float
+  radius      Float    // km
+  
+  // 출장비 기준
+  baseTravelFee Float  @default(0)
+  
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([isActive])
+}
+
+// ----------------------------------------------------------------------------
+// Promotion - 프로모션/쿠폰
+// ----------------------------------------------------------------------------
+model Promotion {
+  id              String    @id @default(cuid())
+  
+  code            String    @unique
+  name            String
+  description     String?
+  
+  // 할인 유형
+  discountType    String    // PERCENTAGE, FIXED
+  discountValue   Float     // 퍼센트 또는 고정 금액
+  maxDiscount     Float?    // 최대 할인 금액 (퍼센트의 경우)
+  
+  // 조건
+  minOrderAmount  Float?    // 최소 주문 금액
+  maxUsageTotal   Int?      // 전체 사용 제한
+  maxUsagePerUser Int?      // 유저당 사용 제한
+  
+  // 대상
+  targetUserIds   String[]  // 특정 유저만 (비어있으면 전체)
+  
+  // 기간
+  startsAt        DateTime
+  endsAt          DateTime
+  
+  // 통계
+  usageCount      Int       @default(0)
+  
+  isActive        Boolean   @default(true)
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([code])
+  @@index([isActive])
+}
+
+// ----------------------------------------------------------------------------
+// AdminLog - 관리자 활동 로그
+// ----------------------------------------------------------------------------
+model AdminLog {
+  id          String   @id @default(cuid())
+  
+  adminId     String
+  action      String   // APPROVE_PROVIDER, SUSPEND_USER, PROCESS_PAYOUT 등
+  targetType  String   // User, Provider, Booking, Payout 등
+  targetId    String
+  
+  details     Json?    // 상세 정보
+  
+  ipAddress   String?
+  userAgent   String?
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([adminId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+// ----------------------------------------------------------------------------
+// AppConfig - 앱 설정
+// ----------------------------------------------------------------------------
+model AppConfig {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  type      String   @default("string") // string, number, boolean, json
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([key])
+}

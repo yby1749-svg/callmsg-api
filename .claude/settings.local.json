@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker-compose up:*)",
+      "Bash(docker rm:*)",
+      "Bash(docker ps:*)",
+      "Bash(npm install:*)",
+      "Bash(npx prisma generate:*)",
+      "Bash(npx prisma migrate:*)",
+      "Bash(npm run dev:*)",
+      "Bash(curl:*)",
+      "Bash(npm run db:seed:*)",
+      "Bash(printf:*)",
+      "Bash(xxd:*)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjbWo0M3N4bzgwMDA3dXZuY25rMWl0d3JiIiwiZW1haWwiOiJwcm92aWRlckB0ZXN0LmNvbSIsInJvbGUiOiJQUk9WSURFUiIsImlhdCI6MTc2NTYxODgxMiwiZXhwIjoxNzY1NjE5NzEyfQ.hUXeM87gnvEU2lxyFJqeHgH1oQRAZ3pAV05tHGZSZZg\")",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjbWo0M3N4bzgwMDA3dXZuY25rMWl0d3JiIiwiZW1haWwiOiJwcm92aWRlckB0ZXN0LmNvbSIsInJvbGUiOiJQUk9WSURFUiIsImlhdCI6MTc2NTYxODk1OCwiZXhwIjoxNzY1NjE5ODU4fQ.q0JYw6tSUEBbmEqaWZPLgaEdt5CUerJRtUZ17BGoyfk\")",
+      "Bash(BOOKING_ID=\"cmj43wqrb0008uvgotlfy7imc\":*)",
+      "Bash(__NEW_LINE__ echo \"=== 1. PROVIDER_EN_ROUTE (이동 중) ===\")",
+      "Bash(__NEW_LINE__ sleep 1)",
+      "Bash(__NEW_LINE__ echo -e \"\\n=== 2. PROVIDER_ARRIVED (도착) ===\")",
+      "Bash(__NEW_LINE__ echo -e \"\\n=== 3. IN_PROGRESS (서비스 진행 중) ===\")",
+      "Bash(__NEW_LINE__ echo -e \"\\n=== 4. COMPLETED (완료) ===\")",
+      "Bash(ADMIN_TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjbWo0M3N4OHIwMDA1dXZuYzVzNDNqZ2FpIiwiZW1haWwiOiJhZG1pbkBjYWxsbXNnLmNvbSIsInJvbGUiOiJBRE1JTiIsImlhdCI6MTc2NTYxOTI2MCwiZXhwIjoxNzY1NjIwMTYwfQ._N2MTmaBNI_x5Wq4dVm3JjW18g14BnEEZuV_BJ215zA\")",
+      "Bash(__NEW_LINE__ echo \"=== 1. Dashboard ===\")",
+      "Bash(git init:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}
