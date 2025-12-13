@@ -3919,5 +3919,144 @@ describe('API Endpoints', () => {
         });
       });
     });
+
+    describe('Redis Cache Utilities', () => {
+      it('should set and get cached values', async () => {
+        const { cache } = await import('../config/redis.js');
+
+        const testKey = `test:cache:${Date.now()}`;
+        const testValue = { name: 'Test', count: 42 };
+
+        // Set value
+        await cache.set(testKey, testValue, 60);
+
+        // Get value
+        const result = await cache.get<typeof testValue>(testKey);
+
+        expect(result).toBeDefined();
+        expect(result?.name).toBe('Test');
+        expect(result?.count).toBe(42);
+
+        // Clean up
+        await cache.del(testKey);
+      });
+
+      it('should return null for non-existent cache key', async () => {
+        const { cache } = await import('../config/redis.js');
+
+        const result = await cache.get('non-existent-key-12345');
+
+        expect(result).toBeNull();
+      });
+
+      it('should delete cached values', async () => {
+        const { cache } = await import('../config/redis.js');
+
+        const testKey = `test:delete:${Date.now()}`;
+
+        // Set then delete
+        await cache.set(testKey, { data: 'test' }, 60);
+        await cache.del(testKey);
+
+        // Verify deleted
+        const result = await cache.get(testKey);
+        expect(result).toBeNull();
+      });
+
+      it('should delete multiple keys by pattern', async () => {
+        const { cache, redis } = await import('../config/redis.js');
+
+        const prefix = `test:pattern:${Date.now()}`;
+
+        // Set multiple keys
+        await cache.set(`${prefix}:key1`, { id: 1 }, 60);
+        await cache.set(`${prefix}:key2`, { id: 2 }, 60);
+        await cache.set(`${prefix}:key3`, { id: 3 }, 60);
+
+        // Delete by pattern
+        await cache.delPattern(`${prefix}:*`);
+
+        // Verify all deleted
+        const keys = await redis.keys(`${prefix}:*`);
+        expect(keys.length).toBe(0);
+      });
+
+      it('should handle delPattern with no matching keys', async () => {
+        const { cache } = await import('../config/redis.js');
+
+        // Should not throw
+        await expect(
+          cache.delPattern('non-existent-pattern-*')
+        ).resolves.not.toThrow();
+      });
+    });
+
+    describe('Redis Location Cache', () => {
+      it('should set and get provider location', async () => {
+        const { locationCache } = await import('../config/redis.js');
+
+        const testProviderId = `test-provider-${Date.now()}`;
+
+        // Set location
+        await locationCache.setProviderLocation(testProviderId, 14.5586, 121.0178);
+
+        // Get location
+        const location = await locationCache.getProviderLocation(testProviderId);
+
+        expect(location).toBeDefined();
+        expect(location?.lat).toBeCloseTo(14.5586, 4);
+        expect(location?.lng).toBeCloseTo(121.0178, 4);
+        expect(location?.updatedAt).toBeDefined();
+      });
+
+      it('should return null for non-existent provider location', async () => {
+        const { locationCache } = await import('../config/redis.js');
+
+        const location = await locationCache.getProviderLocation('non-existent-provider');
+
+        expect(location).toBeNull();
+      });
+
+      it('should set and get booking location', async () => {
+        const { locationCache } = await import('../config/redis.js');
+
+        const testBookingId = `test-booking-${Date.now()}`;
+
+        // Set location with ETA
+        await locationCache.setBookingLocation(testBookingId, 14.5600, 121.0200, 15);
+
+        // Get location
+        const location = await locationCache.getBookingLocation(testBookingId);
+
+        expect(location).toBeDefined();
+        expect(location?.lat).toBeCloseTo(14.5600, 4);
+        expect(location?.lng).toBeCloseTo(121.0200, 4);
+        expect(location?.eta).toBe(15);
+        expect(location?.updatedAt).toBeDefined();
+      });
+
+      it('should set booking location without ETA', async () => {
+        const { locationCache } = await import('../config/redis.js');
+
+        const testBookingId = `test-booking-no-eta-${Date.now()}`;
+
+        // Set location without ETA
+        await locationCache.setBookingLocation(testBookingId, 14.5600, 121.0200);
+
+        // Get location
+        const location = await locationCache.getBookingLocation(testBookingId);
+
+        expect(location).toBeDefined();
+        expect(location?.eta).toBeNull();
+      });
+
+      it('should return null for non-existent booking location', async () => {
+        const { locationCache } = await import('../config/redis.js');
+
+        const location = await locationCache.getBookingLocation('non-existent-booking');
+
+        expect(location).toBeNull();
+      });
+    });
   });
 });
