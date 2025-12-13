@@ -4294,6 +4294,491 @@ describe('API Endpoints', () => {
       });
     });
 
+    describe('Provider Service - Registration', () => {
+      it('should register a new provider', async () => {
+        const { providerService } = await import('../services/providers.service.js');
+
+        // Create a new user to register as provider
+        const newUser = await prisma.user.create({
+          data: {
+            email: `new-provider-${Date.now()}@test.com`,
+            phone: `+63${Date.now().toString().slice(-10)}`,
+            passwordHash: '$2b$10$test',
+            firstName: 'New',
+            lastName: 'Provider',
+            role: 'CUSTOMER',
+            status: 'ACTIVE',
+          },
+        });
+
+        const result = await providerService.registerAsProvider(newUser.id, {
+          displayName: 'New Provider Display',
+          bio: 'Test bio',
+          serviceAreas: ['MAKATI', 'BGC'],
+        });
+
+        expect(result).toHaveProperty('id');
+        expect(result.displayName).toBe('New Provider Display');
+        expect(result.bio).toBe('Test bio');
+        expect(result.serviceAreas).toContain('MAKATI');
+
+        // Verify user role was updated
+        const updatedUser = await prisma.user.findUnique({ where: { id: newUser.id } });
+        expect(updatedUser?.role).toBe('PROVIDER');
+
+        // Clean up
+        await prisma.provider.delete({ where: { userId: newUser.id } });
+        await prisma.user.delete({ where: { id: newUser.id } });
+      });
+
+      it('should throw error if already registered as provider', async () => {
+        const { providerService } = await import('../services/providers.service.js');
+
+        const providerUser = await prisma.user.findFirst({
+          where: { email: 'provider@test.com' },
+        });
+
+        await expect(
+          providerService.registerAsProvider(providerUser!.id, {
+            displayName: 'Duplicate',
+          })
+        ).rejects.toThrow('Already registered as provider');
+      });
+    });
+
+    describe('Provider Service - Profile & Documents', () => {
+      it('should get provider profile', async () => {
+        const { providerService } = await import('../services/providers.service.js');
+
+        const providerUser = await prisma.user.findFirst({
+          where: { email: 'provider@test.com' },
+        });
+
+        const profile = await providerService.getMyProfile(providerUser!.id);
+
+        expect(profile).toHaveProperty('id');
+        expect(profile).toHaveProperty('displayName');
+        expect(profile).toHaveProperty('user');
+      });
+
+      it('should throw error for non-existent provider profile', async () => {
+        const { providerService } = await import('../services/providers.service.js');
+
+        await expect(
+          providerService.getMyProfile('non-existent-user-id')
+        ).rejects.toThrow('Provider not found');
+      });
+
+      it('should update provider profile', async () => {
+        const { providerService } = await import('../services/providers.service.js');
+
+        const providerUser = await prisma.user.findFirst({
+          where: { email: 'provider@test.com' },
+        });
+
+        const updated = await providerService.updateMyProfile(providerUser!.id, {
+          bio: 'Updated bio for testing',
+        });
+
+        expect(updated.bio).toBe('Updated bio for testing');
+      });
+
+      it('should get provider documents', async () => {
+        const { providerService } = await import('../services/providers.service.js');
+
+        const providerUser = await prisma.user.findFirst({
+          where: { email: 'provider@test.com' },
+        });
+
+        const documents = await providerService.getMyDocuments(providerUser!.id);
+
+        expect(Array.isArray(documents)).toBe(true);
+      });
+
+      it('should throw error for documents of non-existent provider', async () => {
+        const { providerService } = await import('../services/providers.service.js');
+
+        await expect(
+          providerService.getMyDocuments('non-existent-user-id')
+        ).rejects.toThrow('Provider not found');
+      });
+
+      it('should get provider services list', async () => {
+        const { providerService } = await import('../services/providers.service.js');
+
+        const providerUser = await prisma.user.findFirst({
+          where: { email: 'provider@test.com' },
+        });
+
+        const services = await providerService.getMyServices(providerUser!.id);
+
+        expect(Array.isArray(services)).toBe(true);
+      });
+
+      it('should throw error for services of non-existent provider', async () => {
+        const { providerService } = await import('../services/providers.service.js');
+
+        await expect(
+          providerService.getMyServices('non-existent-user-id')
+        ).rejects.toThrow('Provider not found');
+      });
+    });
+
+    describe('Provider Service - Location & Status', () => {
+      it('should update provider online status', async () => {
+        const { providerService } = await import('../services/providers.service.js');
+
+        const providerUser = await prisma.user.findFirst({
+          where: { email: 'provider@test.com' },
+        });
+
+        await providerService.updateOnlineStatus(providerUser!.id, 'ONLINE');
+
+        const provider = await prisma.provider.findUnique({
+          where: { userId: providerUser!.id },
+        });
+        expect(provider?.onlineStatus).toBe('ONLINE');
+
+        // Reset to offline
+        await providerService.updateOnlineStatus(providerUser!.id, 'OFFLINE');
+      });
+
+      it('should update provider location', async () => {
+        const { providerService } = await import('../services/providers.service.js');
+
+        const providerUser = await prisma.user.findFirst({
+          where: { email: 'provider@test.com' },
+        });
+
+        await providerService.updateLocation(providerUser!.id, {
+          latitude: 14.5995,
+          longitude: 120.9842,
+        });
+
+        const provider = await prisma.provider.findUnique({
+          where: { userId: providerUser!.id },
+        });
+        expect(provider?.lastLatitude).toBe(14.5995);
+        expect(provider?.lastLongitude).toBe(120.9842);
+        expect(provider?.lastLocationAt).toBeDefined();
+      });
+
+      it('should throw error for location update of non-existent provider', async () => {
+        const { providerService } = await import('../services/providers.service.js');
+
+        await expect(
+          providerService.updateLocation('non-existent-user-id', {
+            latitude: 14.5995,
+            longitude: 120.9842,
+          })
+        ).rejects.toThrow('Provider not found');
+      });
+
+      it('should update bank account info', async () => {
+        const { providerService } = await import('../services/providers.service.js');
+
+        const providerUser = await prisma.user.findFirst({
+          where: { email: 'provider@test.com' },
+        });
+
+        await providerService.updateBankAccount(providerUser!.id, {
+          bankName: 'Test Bank',
+          bankAccountNumber: '1234567890',
+          bankAccountName: 'Test Account',
+        });
+
+        const provider = await prisma.provider.findUnique({
+          where: { userId: providerUser!.id },
+        });
+        expect(provider?.bankName).toBe('Test Bank');
+        expect(provider?.bankAccountNumber).toBe('1234567890');
+      });
+    });
+
+    describe('Provider Service - Earnings & Payouts', () => {
+      it('should get provider earnings', async () => {
+        const { providerService } = await import('../services/providers.service.js');
+
+        const providerUser = await prisma.user.findFirst({
+          where: { email: 'provider@test.com' },
+        });
+
+        const earnings = await providerService.getEarnings(providerUser!.id, {});
+
+        expect(Array.isArray(earnings)).toBe(true);
+      });
+
+      it('should throw error for earnings of non-existent provider', async () => {
+        const { providerService } = await import('../services/providers.service.js');
+
+        await expect(
+          providerService.getEarnings('non-existent-user-id', {})
+        ).rejects.toThrow('Provider not found');
+      });
+
+      it('should get earnings summary', async () => {
+        const { providerService } = await import('../services/providers.service.js');
+
+        const providerUser = await prisma.user.findFirst({
+          where: { email: 'provider@test.com' },
+        });
+
+        const summary = await providerService.getEarningsSummary(providerUser!.id);
+
+        expect(summary).toHaveProperty('balance');
+        expect(summary).toHaveProperty('totalEarnings');
+      });
+
+      it('should throw error for summary of non-existent provider', async () => {
+        const { providerService } = await import('../services/providers.service.js');
+
+        await expect(
+          providerService.getEarningsSummary('non-existent-user-id')
+        ).rejects.toThrow('Provider not found');
+      });
+
+      it('should get provider payouts list', async () => {
+        const { providerService } = await import('../services/providers.service.js');
+
+        const providerUser = await prisma.user.findFirst({
+          where: { email: 'provider@test.com' },
+        });
+
+        const payouts = await providerService.getPayouts(providerUser!.id);
+
+        expect(Array.isArray(payouts)).toBe(true);
+      });
+
+      it('should throw error for payouts of non-existent provider', async () => {
+        const { providerService } = await import('../services/providers.service.js');
+
+        await expect(
+          providerService.getPayouts('non-existent-user-id')
+        ).rejects.toThrow('Provider not found');
+      });
+
+      it('should throw error for payout with insufficient balance', async () => {
+        const { providerService } = await import('../services/providers.service.js');
+
+        const providerUser = await prisma.user.findFirst({
+          where: { email: 'provider@test.com' },
+        });
+
+        // Ensure provider has zero balance
+        await prisma.provider.update({
+          where: { userId: providerUser!.id },
+          data: { balance: 0 },
+        });
+
+        await expect(
+          providerService.requestPayout(providerUser!.id, { amount: 1000, method: 'GCASH' })
+        ).rejects.toThrow('Insufficient balance');
+      });
+
+      it('should throw error for payout below minimum amount', async () => {
+        const { providerService } = await import('../services/providers.service.js');
+
+        const providerUser = await prisma.user.findFirst({
+          where: { email: 'provider@test.com' },
+        });
+
+        // Give provider some balance
+        await prisma.provider.update({
+          where: { userId: providerUser!.id },
+          data: { balance: 1000 },
+        });
+
+        await expect(
+          providerService.requestPayout(providerUser!.id, { amount: 100, method: 'GCASH' })
+        ).rejects.toThrow('Minimum payout is ₱500');
+
+        // Reset balance
+        await prisma.provider.update({
+          where: { userId: providerUser!.id },
+          data: { balance: 0 },
+        });
+      });
+
+      it('should throw error for payout of non-existent provider', async () => {
+        const { providerService } = await import('../services/providers.service.js');
+
+        await expect(
+          providerService.requestPayout('non-existent-user-id', { amount: 1000, method: 'GCASH' })
+        ).rejects.toThrow('Provider not found');
+      });
+    });
+
+    describe('Provider Service - Service Management', () => {
+      it('should set a new service for provider', async () => {
+        const { providerService } = await import('../services/providers.service.js');
+
+        const providerUser = await prisma.user.findFirst({
+          where: { email: 'provider@test.com' },
+        });
+
+        const provider = await prisma.provider.findFirst({
+          where: { userId: providerUser!.id },
+        });
+
+        // Use svc-deep which exists in DB and isn't assigned to provider
+        const result = await providerService.setService(providerUser!.id, {
+          serviceId: 'svc-deep',
+          price60: 900,
+          price90: 1300,
+          price120: 1700,
+          isActive: true,
+        });
+
+        expect(result.price60).toBe(900);
+        expect(result.price90).toBe(1300);
+        expect(result.price120).toBe(1700);
+
+        // Clean up
+        await prisma.providerService.delete({
+          where: { providerId_serviceId: { providerId: provider!.id, serviceId: 'svc-deep' } },
+        });
+      });
+
+      it('should throw error for set service of non-existent provider', async () => {
+        const { providerService } = await import('../services/providers.service.js');
+
+        await expect(
+          providerService.setService('non-existent-user-id', {
+            serviceId: 'svc-thai',
+            price60: 800,
+          })
+        ).rejects.toThrow('Provider not found');
+      });
+
+      it('should remove a service from provider', async () => {
+        const { providerService } = await import('../services/providers.service.js');
+
+        const providerUser = await prisma.user.findFirst({
+          where: { email: 'provider@test.com' },
+        });
+
+        const provider = await prisma.provider.findFirst({
+          where: { userId: providerUser!.id },
+        });
+
+        // First ensure service exists (use upsert to handle if it already exists)
+        await prisma.providerService.upsert({
+          where: { providerId_serviceId: { providerId: provider!.id, serviceId: 'svc-scrub' } },
+          update: { price60: 850 },
+          create: {
+            providerId: provider!.id,
+            serviceId: 'svc-scrub',
+            price60: 850,
+          },
+        });
+
+        await providerService.removeService(providerUser!.id, 'svc-scrub');
+
+        // Verify it's removed
+        const removed = await prisma.providerService.findUnique({
+          where: { providerId_serviceId: { providerId: provider!.id, serviceId: 'svc-scrub' } },
+        });
+        expect(removed).toBeNull();
+      });
+
+      it('should throw error for remove service of non-existent provider', async () => {
+        const { providerService } = await import('../services/providers.service.js');
+
+        await expect(
+          providerService.removeService('non-existent-user-id', 'svc-thai')
+        ).rejects.toThrow('Provider not found');
+      });
+
+      it('should throw error for get availability of non-existent provider', async () => {
+        const { providerService } = await import('../services/providers.service.js');
+
+        await expect(
+          providerService.getMyAvailability('non-existent-user-id')
+        ).rejects.toThrow('Provider not found');
+      });
+
+      it('should throw error for set availability of non-existent provider', async () => {
+        const { providerService } = await import('../services/providers.service.js');
+
+        await expect(
+          providerService.setMyAvailability('non-existent-user-id', [
+            { dayOfWeek: 1, startTime: '09:00', endTime: '17:00' },
+          ])
+        ).rejects.toThrow('Provider not found');
+      });
+    });
+
+    describe('Provider Service - Public APIs', () => {
+      it('should list approved providers', async () => {
+        const { providerService } = await import('../services/providers.service.js');
+
+        const result = await providerService.listProviders({});
+
+        expect(result).toHaveProperty('data');
+        expect(result).toHaveProperty('pagination');
+        expect(Array.isArray(result.data)).toBe(true);
+      });
+
+      it('should list providers with pagination', async () => {
+        const { providerService } = await import('../services/providers.service.js');
+
+        const result = await providerService.listProviders({ limit: '5', page: '1' });
+
+        expect(result.data.length).toBeLessThanOrEqual(5);
+      });
+
+      it('should get provider detail by ID', async () => {
+        const { providerService } = await import('../services/providers.service.js');
+
+        const provider = await prisma.provider.findFirst({
+          where: { user: { email: 'provider@test.com' } },
+        });
+
+        const detail = await providerService.getProviderDetail(provider!.id);
+
+        expect(detail).toHaveProperty('id');
+        expect(detail).toHaveProperty('displayName');
+        expect(detail).toHaveProperty('user');
+        expect(detail).toHaveProperty('services');
+      });
+
+      it('should throw error for non-existent provider detail', async () => {
+        const { providerService } = await import('../services/providers.service.js');
+
+        await expect(
+          providerService.getProviderDetail('non-existent-provider-id')
+        ).rejects.toThrow('Provider not found');
+      });
+
+      it('should get provider reviews', async () => {
+        const { providerService } = await import('../services/providers.service.js');
+
+        const provider = await prisma.provider.findFirst({
+          where: { user: { email: 'provider@test.com' } },
+        });
+
+        const result = await providerService.getProviderReviews(provider!.id, {});
+
+        expect(result).toHaveProperty('data');
+        expect(result).toHaveProperty('pagination');
+        expect(Array.isArray(result.data)).toBe(true);
+      });
+
+      it('should get provider availability for date', async () => {
+        const { providerService } = await import('../services/providers.service.js');
+
+        const provider = await prisma.provider.findFirst({
+          where: { user: { email: 'provider@test.com' } },
+        });
+
+        const result = await providerService.getProviderAvailability(provider!.id, '2025-01-15');
+
+        expect(result).toHaveProperty('date', '2025-01-15');
+        expect(result).toHaveProperty('slots');
+        expect(Array.isArray(result.slots)).toBe(true);
+      });
+    });
+
     describe('Booking Service', () => {
       it('should get provider location from cache', async () => {
         const { bookingService } = await import('../services/bookings.service.js');
