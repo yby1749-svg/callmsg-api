@@ -5957,6 +5957,218 @@ describe('API Endpoints', () => {
           await prisma.booking.delete({ where: { id: booking.id } });
         });
       });
+
+      describe('Admin Controller', () => {
+        let adminToken: string;
+
+        beforeAll(async () => {
+          const loginRes = await request(app)
+            .post('/api/v1/auth/login')
+            .send({ email: 'admin@callmsg.com', password: 'admin123!' });
+          adminToken = loginRes.body.data.accessToken;
+        });
+
+        it('should handle getProviderDetail for non-existent provider', async () => {
+          const res = await request(app)
+            .get('/api/v1/admin/providers/non-existent-provider-id')
+            .set('Authorization', `Bearer ${adminToken}`);
+
+          expect(res.status).toBe(404);
+        });
+
+        it('should handle approveProvider for non-existent provider', async () => {
+          const res = await request(app)
+            .post('/api/v1/admin/providers/non-existent-id/approve')
+            .set('Authorization', `Bearer ${adminToken}`);
+
+          expect(res.status).toBe(404);
+        });
+
+        it('should handle rejectProvider for non-existent provider', async () => {
+          const res = await request(app)
+            .post('/api/v1/admin/providers/non-existent-id/reject')
+            .set('Authorization', `Bearer ${adminToken}`)
+            .send({ reason: 'Test rejection' });
+
+          expect(res.status).toBe(404);
+        });
+
+        it('should handle suspendProvider for non-existent provider', async () => {
+          const res = await request(app)
+            .post('/api/v1/admin/providers/non-existent-id/suspend')
+            .set('Authorization', `Bearer ${adminToken}`)
+            .send({ reason: 'Test suspension' });
+
+          expect(res.status).toBe(404);
+        });
+
+        it('should handle unsuspendProvider for non-existent provider', async () => {
+          const res = await request(app)
+            .post('/api/v1/admin/providers/non-existent-id/unsuspend')
+            .set('Authorization', `Bearer ${adminToken}`);
+
+          expect(res.status).toBe(404);
+        });
+
+        it('should handle getBookingDetail for non-existent booking', async () => {
+          const res = await request(app)
+            .get('/api/v1/admin/bookings/non-existent-booking-id')
+            .set('Authorization', `Bearer ${adminToken}`);
+
+          expect(res.status).toBe(404);
+        });
+
+        it('should handle processPayout for non-existent payout', async () => {
+          const res = await request(app)
+            .post('/api/v1/admin/payouts/non-existent-payout-id/process')
+            .set('Authorization', `Bearer ${adminToken}`)
+            .send({ referenceNumber: 'REF123' });
+
+          expect(res.status).toBe(404);
+        });
+
+        it('should handle rejectPayout for non-existent payout', async () => {
+          const res = await request(app)
+            .post('/api/v1/admin/payouts/non-existent-payout-id/reject')
+            .set('Authorization', `Bearer ${adminToken}`)
+            .send({ reason: 'Invalid payout' });
+
+          expect(res.status).toBe(404);
+        });
+
+        it('should handle getReportDetail for non-existent report', async () => {
+          const res = await request(app)
+            .get('/api/v1/admin/reports/non-existent-report-id')
+            .set('Authorization', `Bearer ${adminToken}`);
+
+          expect(res.status).toBe(404);
+        });
+
+        it('should handle assignReport for non-existent report', async () => {
+          const res = await request(app)
+            .post('/api/v1/admin/reports/non-existent-id/assign')
+            .set('Authorization', `Bearer ${adminToken}`);
+
+          expect(res.status).toBe(404);
+        });
+
+        it('should handle resolveReport for non-existent report', async () => {
+          const res = await request(app)
+            .post('/api/v1/admin/reports/non-existent-id/resolve')
+            .set('Authorization', `Bearer ${adminToken}`)
+            .send({ resolution: 'Resolved', actionTaken: 'None' });
+
+          expect(res.status).toBe(404);
+        });
+
+        it('should handle dismissReport for non-existent report', async () => {
+          const res = await request(app)
+            .post('/api/v1/admin/reports/non-existent-id/dismiss')
+            .set('Authorization', `Bearer ${adminToken}`)
+            .send({ reason: 'Invalid report' });
+
+          expect(res.status).toBe(404);
+        });
+
+        it('should handle getUserDetail for non-existent user', async () => {
+          const res = await request(app)
+            .get('/api/v1/admin/users/non-existent-user-id')
+            .set('Authorization', `Bearer ${adminToken}`);
+
+          expect(res.status).toBe(404);
+        });
+
+        it('should handle suspendUser for non-existent user', async () => {
+          const res = await request(app)
+            .post('/api/v1/admin/users/non-existent-user-id/suspend')
+            .set('Authorization', `Bearer ${adminToken}`)
+            .send({ reason: 'Test suspension' });
+
+          expect(res.status).toBe(404);
+        });
+
+        it('should handle updateService for non-existent service', async () => {
+          const res = await request(app)
+            .patch('/api/v1/admin/services/non-existent-service-id')
+            .set('Authorization', `Bearer ${adminToken}`)
+            .send({ basePrice: 1000 });
+
+          expect(res.status).toBe(404);
+        });
+
+        it('should handle deleteService for non-existent service', async () => {
+          const res = await request(app)
+            .delete('/api/v1/admin/services/non-existent-service-id')
+            .set('Authorization', `Bearer ${adminToken}`);
+
+          expect(res.status).toBe(404);
+        });
+
+        it('should handle updatePromotion for non-existent promotion', async () => {
+          const res = await request(app)
+            .patch('/api/v1/admin/promotions/non-existent-promotion-id')
+            .set('Authorization', `Bearer ${adminToken}`)
+            .send({ discountValue: 25 });
+
+          expect(res.status).toBe(404);
+        });
+
+        it('should handle deletePromotion for non-existent promotion', async () => {
+          const res = await request(app)
+            .delete('/api/v1/admin/promotions/non-existent-promotion-id')
+            .set('Authorization', `Bearer ${adminToken}`);
+
+          expect(res.status).toBe(404);
+        });
+
+        it('should handle createService with valid data', async () => {
+          const res = await request(app)
+            .post('/api/v1/admin/services')
+            .set('Authorization', `Bearer ${adminToken}`)
+            .send({
+              name: 'Controller Test Service',
+              nameKo: '컨트롤러 테스트',
+              description: 'Test service from controller test',
+              category: 'COMBINATION',
+              baseDuration: 90,
+              basePrice: 1200,
+            });
+
+          expect(res.status).toBe(201);
+          expect(res.body.success).toBe(true);
+
+          // Clean up
+          if (res.body.data?.id) {
+            await prisma.service.delete({ where: { id: res.body.data.id } });
+          }
+        });
+
+        it('should handle createPromotion with valid data', async () => {
+          const startsAt = new Date();
+          const endsAt = new Date();
+          endsAt.setDate(endsAt.getDate() + 7);
+
+          const res = await request(app)
+            .post('/api/v1/admin/promotions')
+            .set('Authorization', `Bearer ${adminToken}`)
+            .send({
+              code: `CTRLTEST${Date.now()}`,
+              name: 'Controller Test Promo',
+              discountType: 'FIXED',
+              discountValue: 100,
+              startsAt: startsAt.toISOString(),
+              endsAt: endsAt.toISOString(),
+            });
+
+          expect(res.status).toBe(201);
+          expect(res.body.success).toBe(true);
+
+          // Clean up
+          if (res.body.data?.id) {
+            await prisma.promotion.delete({ where: { id: res.body.data.id } });
+          }
+        });
+      });
     });
   });
 });
