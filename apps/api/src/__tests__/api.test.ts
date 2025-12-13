@@ -940,7 +940,8 @@ describe('API Endpoints', () => {
   describe('Admin Routes', () => {
     let adminToken: string;
     let customerToken: string;
-    let providerId: string;
+    let providerId: string; // Provider record ID (for admin provider routes)
+    let providerUserId: string; // User ID (for reports)
     let customerId: string;
     let createdServiceId: string;
     let createdPromotionId: string;
@@ -961,11 +962,12 @@ describe('API Endpoints', () => {
       customerToken = customerRes.body.data.accessToken;
       customerId = customerRes.body.data.user.id;
 
-      // Get provider ID
+      // Get provider IDs for admin operations
       const provider = await prisma.provider.findFirst({
         where: { user: { email: 'provider@test.com' } },
       });
-      providerId = provider!.id;
+      providerId = provider!.id; // Provider record ID for admin routes
+      providerUserId = provider!.userId; // User ID for reports
     });
 
     afterAll(async () => {
@@ -1057,6 +1059,52 @@ describe('API Endpoints', () => {
         expect(res.body).toHaveProperty('success', true);
         expect(res.body.message).toContain('unsuspended');
       });
+
+      it('should approve a provider', async () => {
+        const res = await request(app)
+          .post(`/api/v1/admin/providers/${providerId}/approve`)
+          .set('Authorization', `Bearer ${adminToken}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body).toHaveProperty('success', true);
+        expect(res.body.message).toContain('approved');
+      });
+
+      it('should reject a provider', async () => {
+        // Create a test provider specifically for rejection testing
+        const testUser = await prisma.user.create({
+          data: {
+            email: `reject-test-${Date.now()}@test.com`,
+            phone: `+63${Date.now().toString().slice(-10)}`,
+            passwordHash: 'test',
+            firstName: 'Reject',
+            lastName: 'Test',
+            role: 'PROVIDER',
+          },
+        });
+
+        const testProviderRecord = await prisma.provider.create({
+          data: {
+            userId: testUser.id,
+            displayName: 'Reject Test Provider',
+            status: 'PENDING',
+            serviceAreas: ['MAKATI'],
+          },
+        });
+
+        const res = await request(app)
+          .post(`/api/v1/admin/providers/${testProviderRecord.id}/reject`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({ reason: 'Test rejection reason' });
+
+        expect(res.status).toBe(200);
+        expect(res.body).toHaveProperty('success', true);
+        expect(res.body.message).toContain('rejected');
+
+        // Clean up
+        await prisma.provider.delete({ where: { id: testProviderRecord.id } });
+        await prisma.user.delete({ where: { id: testUser.id } });
+      });
     });
 
     describe('Bookings Management', () => {
@@ -1077,6 +1125,165 @@ describe('API Endpoints', () => {
 
         expect(res.status).toBe(200);
         expect(res.body).toHaveProperty('success', true);
+      });
+
+      it('should get booking details', async () => {
+        // First get a booking ID
+        const listRes = await request(app)
+          .get('/api/v1/admin/bookings')
+          .set('Authorization', `Bearer ${adminToken}`);
+
+        if (listRes.body.data && listRes.body.data.length > 0) {
+          const bookingId = listRes.body.data[0].id;
+
+          const res = await request(app)
+            .get(`/api/v1/admin/bookings/${bookingId}`)
+            .set('Authorization', `Bearer ${adminToken}`);
+
+          expect(res.status).toBe(200);
+          expect(res.body).toHaveProperty('success', true);
+          expect(res.body.data).toHaveProperty('id', bookingId);
+        }
+      });
+    });
+
+    describe('Payouts Management', () => {
+      it('should list all payouts', async () => {
+        const res = await request(app)
+          .get('/api/v1/admin/payouts')
+          .set('Authorization', `Bearer ${adminToken}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body).toHaveProperty('success', true);
+        expect(Array.isArray(res.body.data)).toBe(true);
+      });
+
+      it('should filter payouts by status', async () => {
+        const res = await request(app)
+          .get('/api/v1/admin/payouts?status=PENDING')
+          .set('Authorization', `Bearer ${adminToken}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body).toHaveProperty('success', true);
+      });
+
+      it('should reject processing non-existent payout', async () => {
+        const res = await request(app)
+          .post('/api/v1/admin/payouts/non-existent-id/process')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({ referenceNumber: 'REF123' });
+
+        expect(res.status).toBe(404);
+      });
+
+      it('should reject rejecting non-existent payout', async () => {
+        const res = await request(app)
+          .post('/api/v1/admin/payouts/non-existent-id/reject')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({ reason: 'Invalid request' });
+
+        expect(res.status).toBe(404);
+      });
+    });
+
+    describe('Reports Management', () => {
+      let testReportId: string;
+
+      beforeAll(async () => {
+        // Create a test report for testing
+        const report = await prisma.report.create({
+          data: {
+            reporterId: customerId,
+            reportedId: providerUserId, // Use user ID, not provider record ID
+            type: 'OTHER',
+            description: 'Test report for admin testing',
+          },
+        });
+        testReportId = report.id;
+      });
+
+      afterAll(async () => {
+        // Clean up test report
+        if (testReportId) {
+          await prisma.report.deleteMany({ where: { id: testReportId } });
+        }
+      });
+
+      it('should list all reports', async () => {
+        const res = await request(app)
+          .get('/api/v1/admin/reports')
+          .set('Authorization', `Bearer ${adminToken}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body).toHaveProperty('success', true);
+        expect(Array.isArray(res.body.data)).toBe(true);
+      });
+
+      it('should filter reports by status', async () => {
+        const res = await request(app)
+          .get('/api/v1/admin/reports?status=PENDING')
+          .set('Authorization', `Bearer ${adminToken}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body).toHaveProperty('success', true);
+      });
+
+      it('should get report details', async () => {
+        const res = await request(app)
+          .get(`/api/v1/admin/reports/${testReportId}`)
+          .set('Authorization', `Bearer ${adminToken}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body).toHaveProperty('success', true);
+        expect(res.body.data).toHaveProperty('id', testReportId);
+      });
+
+      it('should assign a report', async () => {
+        const res = await request(app)
+          .post(`/api/v1/admin/reports/${testReportId}/assign`)
+          .set('Authorization', `Bearer ${adminToken}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body).toHaveProperty('success', true);
+        expect(res.body.message).toContain('assigned');
+      });
+
+      it('should resolve a report', async () => {
+        const res = await request(app)
+          .post(`/api/v1/admin/reports/${testReportId}/resolve`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            resolution: 'Issue has been addressed',
+            actionTaken: 'Warning issued to provider',
+          });
+
+        expect(res.status).toBe(200);
+        expect(res.body).toHaveProperty('success', true);
+        expect(res.body.message).toContain('resolved');
+      });
+
+      it('should dismiss a report', async () => {
+        // Create another report for dismissal test
+        const report = await prisma.report.create({
+          data: {
+            reporterId: customerId,
+            reportedId: providerUserId, // Use user ID, not provider record ID
+            type: 'OTHER',
+            description: 'Test report for dismissal',
+          },
+        });
+
+        const res = await request(app)
+          .post(`/api/v1/admin/reports/${report.id}/dismiss`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({ reason: 'Report is invalid' });
+
+        expect(res.status).toBe(200);
+        expect(res.body).toHaveProperty('success', true);
+        expect(res.body.message).toContain('dismissed');
+
+        // Clean up
+        await prisma.report.deleteMany({ where: { id: report.id } });
       });
     });
 
@@ -1108,6 +1315,31 @@ describe('API Endpoints', () => {
         expect(res.status).toBe(200);
         expect(res.body).toHaveProperty('success', true);
         expect(res.body.data).toHaveProperty('id', customerId);
+      });
+
+      it('should suspend a user', async () => {
+        // Create a test user to suspend
+        const testUser = await prisma.user.create({
+          data: {
+            email: `suspend-test-${Date.now()}@test.com`,
+            phone: `+63${Date.now().toString().slice(-10)}`,
+            passwordHash: 'test',
+            firstName: 'Test',
+            lastName: 'Suspend',
+          },
+        });
+
+        const res = await request(app)
+          .post(`/api/v1/admin/users/${testUser.id}/suspend`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({ reason: 'Test suspension' });
+
+        expect(res.status).toBe(200);
+        expect(res.body).toHaveProperty('success', true);
+        expect(res.body.message).toContain('suspended');
+
+        // Clean up
+        await prisma.user.delete({ where: { id: testUser.id } });
       });
     });
 
