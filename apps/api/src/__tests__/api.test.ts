@@ -466,4 +466,313 @@ describe('API Endpoints', () => {
       });
     });
   });
+
+  describe('Reviews and Ratings', () => {
+    let customerToken: string;
+    let providerToken: string;
+    let providerId: string;
+    let providerUserId: string;
+    let completedBookingId: string;
+    let createdReviewId: string;
+
+    beforeAll(async () => {
+      await prisma.refreshToken.deleteMany({});
+
+      // Login as customer
+      const customerRes = await request(app)
+        .post('/api/v1/auth/login')
+        .send({ email: 'customer@test.com', password: 'customer123!' });
+      customerToken = customerRes.body.data.accessToken;
+
+      // Login as provider
+      const providerRes = await request(app)
+        .post('/api/v1/auth/login')
+        .send({ email: 'provider@test.com', password: 'provider123!' });
+      providerToken = providerRes.body.data.accessToken;
+      providerUserId = providerRes.body.data.user.id;
+
+      // Get provider ID
+      const provider = await prisma.provider.findFirst({
+        where: { user: { email: 'provider@test.com' } },
+      });
+      providerId = provider!.id;
+
+      // Create and complete a booking for review tests
+      const scheduledAt = new Date();
+      scheduledAt.setHours(scheduledAt.getHours() + 2);
+
+      const bookingRes = await request(app)
+        .post('/api/v1/bookings')
+        .set('Authorization', `Bearer ${customerToken}`)
+        .send({
+          providerId,
+          serviceId: 'svc-thai',
+          duration: 60,
+          scheduledAt: scheduledAt.toISOString(),
+          addressText: 'Review Test Address',
+          latitude: 14.5586,
+          longitude: 121.0178,
+        });
+
+      completedBookingId = bookingRes.body.data.booking.id;
+
+      // Complete the booking flow
+      await request(app)
+        .post(`/api/v1/bookings/${completedBookingId}/accept`)
+        .set('Authorization', `Bearer ${providerToken}`);
+
+      await request(app)
+        .patch(`/api/v1/bookings/${completedBookingId}/status`)
+        .set('Authorization', `Bearer ${providerToken}`)
+        .send({ status: 'PROVIDER_EN_ROUTE' });
+
+      await request(app)
+        .patch(`/api/v1/bookings/${completedBookingId}/status`)
+        .set('Authorization', `Bearer ${providerToken}`)
+        .send({ status: 'PROVIDER_ARRIVED' });
+
+      await request(app)
+        .patch(`/api/v1/bookings/${completedBookingId}/status`)
+        .set('Authorization', `Bearer ${providerToken}`)
+        .send({ status: 'IN_PROGRESS' });
+
+      await request(app)
+        .patch(`/api/v1/bookings/${completedBookingId}/status`)
+        .set('Authorization', `Bearer ${providerToken}`)
+        .send({ status: 'COMPLETED' });
+    });
+
+    afterAll(async () => {
+      // Clean up
+      if (createdReviewId) {
+        await prisma.review.deleteMany({ where: { id: createdReviewId } });
+      }
+      if (completedBookingId) {
+        await prisma.booking.deleteMany({ where: { id: completedBookingId } });
+      }
+    });
+
+    describe('GET /api/v1/providers/:providerId/reviews', () => {
+      it('should return provider reviews', async () => {
+        const res = await request(app)
+          .get(`/api/v1/providers/${providerId}/reviews`);
+
+        expect(res.status).toBe(200);
+        expect(res.body).toHaveProperty('success', true);
+        expect(res.body).toHaveProperty('data');
+        expect(Array.isArray(res.body.data)).toBe(true);
+      });
+
+      it('should return empty array for non-existent provider', async () => {
+        const res = await request(app)
+          .get('/api/v1/providers/non-existent-id/reviews');
+
+        // API returns empty array for non-existent provider
+        expect(res.status).toBe(200);
+        expect(res.body.data).toEqual([]);
+      });
+    });
+
+    describe('POST /api/v1/reviews', () => {
+      it('should require authentication', async () => {
+        const res = await request(app)
+          .post('/api/v1/reviews')
+          .send({ bookingId: completedBookingId, rating: 5 });
+
+        expect(res.status).toBe(401);
+      });
+
+      it('should create a review for completed booking', async () => {
+        const res = await request(app)
+          .post('/api/v1/reviews')
+          .set('Authorization', `Bearer ${customerToken}`)
+          .send({
+            bookingId: completedBookingId,
+            rating: 5,
+            comment: 'Excellent massage! Very professional and relaxing.',
+          });
+
+        expect(res.status).toBe(201);
+        expect(res.body).toHaveProperty('success', true);
+        expect(res.body.data).toHaveProperty('id');
+        expect(res.body.data.rating).toBe(5);
+        expect(res.body.data.comment).toBe('Excellent massage! Very professional and relaxing.');
+
+        createdReviewId = res.body.data.id;
+      });
+
+      it('should not allow duplicate reviews', async () => {
+        const res = await request(app)
+          .post('/api/v1/reviews')
+          .set('Authorization', `Bearer ${customerToken}`)
+          .send({
+            bookingId: completedBookingId,
+            rating: 4,
+            comment: 'Trying to review again',
+          });
+
+        expect(res.status).toBe(400);
+        expect(res.body.error).toContain('already exists');
+      });
+
+      it('should not allow review for non-existent booking', async () => {
+        const res = await request(app)
+          .post('/api/v1/reviews')
+          .set('Authorization', `Bearer ${customerToken}`)
+          .send({
+            bookingId: 'non-existent-booking',
+            rating: 5,
+          });
+
+        expect(res.status).toBe(404);
+      });
+
+      it('should not allow review for incomplete booking', async () => {
+        // Create a pending booking
+        const scheduledAt = new Date();
+        scheduledAt.setHours(scheduledAt.getHours() + 10);
+
+        const bookingRes = await request(app)
+          .post('/api/v1/bookings')
+          .set('Authorization', `Bearer ${customerToken}`)
+          .send({
+            providerId,
+            serviceId: 'svc-aroma',
+            duration: 60,
+            scheduledAt: scheduledAt.toISOString(),
+            addressText: 'Incomplete Booking Address',
+            latitude: 14.5586,
+            longitude: 121.0178,
+          });
+
+        const pendingBookingId = bookingRes.body.data.booking.id;
+
+        const res = await request(app)
+          .post('/api/v1/reviews')
+          .set('Authorization', `Bearer ${customerToken}`)
+          .send({
+            bookingId: pendingBookingId,
+            rating: 5,
+          });
+
+        expect(res.status).toBe(400);
+        expect(res.body.error).toContain('completed');
+
+        // Clean up
+        await prisma.booking.delete({ where: { id: pendingBookingId } });
+      });
+
+      it('should not allow provider to review their own booking', async () => {
+        const res = await request(app)
+          .post('/api/v1/reviews')
+          .set('Authorization', `Bearer ${providerToken}`)
+          .send({
+            bookingId: completedBookingId,
+            rating: 5,
+          });
+
+        expect(res.status).toBe(403);
+      });
+
+      it('should validate rating range', async () => {
+        // Create another completed booking for this test
+        const scheduledAt = new Date();
+        scheduledAt.setHours(scheduledAt.getHours() + 3);
+
+        const bookingRes = await request(app)
+          .post('/api/v1/bookings')
+          .set('Authorization', `Bearer ${customerToken}`)
+          .send({
+            providerId,
+            serviceId: 'svc-swedish',
+            duration: 60,
+            scheduledAt: scheduledAt.toISOString(),
+            addressText: 'Rating Test Address',
+            latitude: 14.5586,
+            longitude: 121.0178,
+          });
+
+        const bookingId = bookingRes.body.data.booking.id;
+
+        // Complete the booking
+        await request(app)
+          .post(`/api/v1/bookings/${bookingId}/accept`)
+          .set('Authorization', `Bearer ${providerToken}`);
+
+        await request(app)
+          .patch(`/api/v1/bookings/${bookingId}/status`)
+          .set('Authorization', `Bearer ${providerToken}`)
+          .send({ status: 'COMPLETED' });
+
+        // Test with valid rating
+        const res = await request(app)
+          .post('/api/v1/reviews')
+          .set('Authorization', `Bearer ${customerToken}`)
+          .send({
+            bookingId,
+            rating: 4,
+            comment: 'Good service',
+          });
+
+        expect(res.status).toBe(201);
+        expect(res.body.data.rating).toBe(4);
+
+        // Clean up
+        await prisma.review.deleteMany({ where: { bookingId } });
+        await prisma.booking.delete({ where: { id: bookingId } });
+      });
+    });
+
+    describe('POST /api/v1/reviews/:reviewId/reply', () => {
+      it('should require authentication', async () => {
+        const res = await request(app)
+          .post(`/api/v1/reviews/${createdReviewId}/reply`)
+          .send({ reply: 'Thank you!' });
+
+        expect(res.status).toBe(401);
+      });
+
+      it('should require provider role', async () => {
+        const res = await request(app)
+          .post(`/api/v1/reviews/${createdReviewId}/reply`)
+          .set('Authorization', `Bearer ${customerToken}`)
+          .send({ reply: 'Thank you!' });
+
+        expect(res.status).toBe(403);
+      });
+
+      it('should allow provider to reply to review', async () => {
+        const res = await request(app)
+          .post(`/api/v1/reviews/${createdReviewId}/reply`)
+          .set('Authorization', `Bearer ${providerToken}`)
+          .send({ reply: 'Thank you for your kind words! It was a pleasure serving you.' });
+
+        expect(res.status).toBe(200);
+        expect(res.body).toHaveProperty('success', true);
+        expect(res.body.data.reply).toBe('Thank you for your kind words! It was a pleasure serving you.');
+        expect(res.body.data).toHaveProperty('repliedAt');
+      });
+
+      it('should return 404 for non-existent review', async () => {
+        const res = await request(app)
+          .post('/api/v1/reviews/non-existent-review/reply')
+          .set('Authorization', `Bearer ${providerToken}`)
+          .send({ reply: 'Thank you!' });
+
+        expect(res.status).toBe(404);
+      });
+    });
+
+    describe('Provider Rating Update', () => {
+      it('should update provider rating after review', async () => {
+        const res = await request(app)
+          .get(`/api/v1/providers/${providerId}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body.data).toHaveProperty('rating');
+        expect(res.body.data).toHaveProperty('totalRatings');
+        expect(res.body.data.totalRatings).toBeGreaterThan(0);
+      });
+    });
+  });
 });
