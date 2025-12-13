@@ -3040,12 +3040,7 @@ describe('API Endpoints', () => {
       });
 
       it('should process webhook and update payment status when payment found', async () => {
-        // Create a booking first
-        const providerLoginRes = await request(app)
-          .post('/api/v1/auth/login')
-          .send({ email: 'provider@test.com', password: 'provider123!' });
-        const providerToken = providerLoginRes.body.data.accessToken;
-
+        // Get provider for creating booking
         const provider = await prisma.provider.findFirst({
           where: { user: { email: 'provider@test.com' } },
         });
