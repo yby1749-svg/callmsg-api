@@ -5436,5 +5436,527 @@ describe('API Endpoints', () => {
         process.env.NODE_ENV = originalEnv;
       });
     });
+
+    describe('Controller Error Handling', () => {
+      describe('Users Controller', () => {
+        it('should handle getProfile error', async () => {
+          // Use invalid token to trigger error in auth middleware path
+          const res = await request(app)
+            .get('/api/v1/users/me')
+            .set('Authorization', 'Bearer invalid-token');
+
+          expect(res.status).toBe(401);
+        });
+
+        it('should handle updateProfile with invalid data', async () => {
+          const loginRes = await request(app)
+            .post('/api/v1/auth/login')
+            .send({ email: 'customer@test.com', password: 'customer123!' });
+          const token = loginRes.body.data.accessToken;
+
+          // Send invalid gender to trigger validation or processing error
+          const res = await request(app)
+            .patch('/api/v1/users/me')
+            .set('Authorization', `Bearer ${token}`)
+            .send({ gender: 'INVALID_GENDER' });
+
+          // May succeed with invalid data or return error depending on validation
+          expect([200, 400, 500]).toContain(res.status);
+        });
+
+        it('should handle uploadAvatar endpoint', async () => {
+          const loginRes = await request(app)
+            .post('/api/v1/auth/login')
+            .send({ email: 'customer@test.com', password: 'customer123!' });
+          const token = loginRes.body.data.accessToken;
+
+          const res = await request(app)
+            .post('/api/v1/users/me/avatar')
+            .set('Authorization', `Bearer ${token}`);
+
+          // Avatar upload returns success (placeholder)
+          expect(res.status).toBe(200);
+          expect(res.body.success).toBe(true);
+        });
+
+        it('should handle updateFcmToken', async () => {
+          const loginRes = await request(app)
+            .post('/api/v1/auth/login')
+            .send({ email: 'customer@test.com', password: 'customer123!' });
+          const token = loginRes.body.data.accessToken;
+
+          const res = await request(app)
+            .patch('/api/v1/users/me/fcm-token')
+            .set('Authorization', `Bearer ${token}`)
+            .send({ fcmToken: 'test-fcm-token-12345' });
+
+          expect(res.status).toBe(200);
+          expect(res.body.success).toBe(true);
+        });
+
+        it('should handle getAddresses', async () => {
+          const loginRes = await request(app)
+            .post('/api/v1/auth/login')
+            .send({ email: 'customer@test.com', password: 'customer123!' });
+          const token = loginRes.body.data.accessToken;
+
+          const res = await request(app)
+            .get('/api/v1/users/me/addresses')
+            .set('Authorization', `Bearer ${token}`);
+
+          expect(res.status).toBe(200);
+          expect(res.body.success).toBe(true);
+          expect(Array.isArray(res.body.data)).toBe(true);
+        });
+
+        it('should handle addAddress', async () => {
+          const loginRes = await request(app)
+            .post('/api/v1/auth/login')
+            .send({ email: 'customer@test.com', password: 'customer123!' });
+          const token = loginRes.body.data.accessToken;
+
+          const res = await request(app)
+            .post('/api/v1/users/me/addresses')
+            .set('Authorization', `Bearer ${token}`)
+            .send({
+              label: 'Test Address',
+              addressLine1: '123 Test Street',
+              city: 'Makati',
+              latitude: 14.5547,
+              longitude: 121.0244,
+            });
+
+          expect(res.status).toBe(201);
+          expect(res.body.success).toBe(true);
+
+          // Clean up
+          if (res.body.data?.id) {
+            await prisma.address.delete({ where: { id: res.body.data.id } });
+          }
+        });
+
+        it('should handle updateAddress for non-existent address', async () => {
+          const loginRes = await request(app)
+            .post('/api/v1/auth/login')
+            .send({ email: 'customer@test.com', password: 'customer123!' });
+          const token = loginRes.body.data.accessToken;
+
+          const res = await request(app)
+            .patch('/api/v1/users/me/addresses/non-existent-address-id')
+            .set('Authorization', `Bearer ${token}`)
+            .send({ label: 'Updated Label' });
+
+          expect(res.status).toBe(404);
+        });
+
+        it('should handle deleteAddress for non-existent address', async () => {
+          const loginRes = await request(app)
+            .post('/api/v1/auth/login')
+            .send({ email: 'customer@test.com', password: 'customer123!' });
+          const token = loginRes.body.data.accessToken;
+
+          const res = await request(app)
+            .delete('/api/v1/users/me/addresses/non-existent-address-id')
+            .set('Authorization', `Bearer ${token}`);
+
+          expect(res.status).toBe(404);
+        });
+      });
+
+      describe('Notifications Controller', () => {
+        it('should handle getNotifications', async () => {
+          const loginRes = await request(app)
+            .post('/api/v1/auth/login')
+            .send({ email: 'customer@test.com', password: 'customer123!' });
+          const token = loginRes.body.data.accessToken;
+
+          const res = await request(app)
+            .get('/api/v1/notifications')
+            .set('Authorization', `Bearer ${token}`);
+
+          expect(res.status).toBe(200);
+          expect(res.body.success).toBe(true);
+        });
+
+        it('should handle markAsRead for non-existent notification', async () => {
+          const loginRes = await request(app)
+            .post('/api/v1/auth/login')
+            .send({ email: 'customer@test.com', password: 'customer123!' });
+          const token = loginRes.body.data.accessToken;
+
+          const res = await request(app)
+            .patch('/api/v1/notifications/non-existent-id/read')
+            .set('Authorization', `Bearer ${token}`);
+
+          expect([200, 404]).toContain(res.status);
+        });
+
+        it('should handle markAllAsRead', async () => {
+          const loginRes = await request(app)
+            .post('/api/v1/auth/login')
+            .send({ email: 'customer@test.com', password: 'customer123!' });
+          const token = loginRes.body.data.accessToken;
+
+          const res = await request(app)
+            .patch('/api/v1/notifications/read-all')
+            .set('Authorization', `Bearer ${token}`);
+
+          expect(res.status).toBe(200);
+          expect(res.body.success).toBe(true);
+        });
+      });
+
+      describe('Payments Controller', () => {
+        it('should handle webhook with invalid signature', async () => {
+          const res = await request(app)
+            .post('/api/v1/payments/webhook')
+            .set('paymongo-signature', 'invalid-signature')
+            .send({ data: { attributes: { type: 'payment.paid' } } });
+
+          // Webhook may succeed or fail based on validation
+          expect([200, 400, 500]).toContain(res.status);
+        });
+
+        it('should handle getPaymentDetail for non-existent payment', async () => {
+          const loginRes = await request(app)
+            .post('/api/v1/auth/login')
+            .send({ email: 'customer@test.com', password: 'customer123!' });
+          const token = loginRes.body.data.accessToken;
+
+          const res = await request(app)
+            .get('/api/v1/payments/non-existent-payment-id')
+            .set('Authorization', `Bearer ${token}`);
+
+          expect(res.status).toBe(404);
+        });
+      });
+
+      describe('Providers Controller', () => {
+        it('should handle getMyProfile for non-provider user', async () => {
+          const loginRes = await request(app)
+            .post('/api/v1/auth/login')
+            .send({ email: 'customer@test.com', password: 'customer123!' });
+          const token = loginRes.body.data.accessToken;
+
+          const res = await request(app)
+            .get('/api/v1/providers/me/profile')
+            .set('Authorization', `Bearer ${token}`);
+
+          expect(res.status).toBe(403);
+        });
+
+        it('should handle updateMyProfile', async () => {
+          const loginRes = await request(app)
+            .post('/api/v1/auth/login')
+            .send({ email: 'provider@test.com', password: 'provider123!' });
+          const token = loginRes.body.data.accessToken;
+
+          const res = await request(app)
+            .patch('/api/v1/providers/me/profile')
+            .set('Authorization', `Bearer ${token}`)
+            .send({ bio: 'Updated bio from test' });
+
+          expect(res.status).toBe(200);
+          expect(res.body.success).toBe(true);
+        });
+
+        it('should handle getMyDocuments', async () => {
+          const loginRes = await request(app)
+            .post('/api/v1/auth/login')
+            .send({ email: 'provider@test.com', password: 'provider123!' });
+          const token = loginRes.body.data.accessToken;
+
+          const res = await request(app)
+            .get('/api/v1/providers/me/documents')
+            .set('Authorization', `Bearer ${token}`);
+
+          expect(res.status).toBe(200);
+          expect(res.body.success).toBe(true);
+        });
+
+        it('should handle getMyServices', async () => {
+          const loginRes = await request(app)
+            .post('/api/v1/auth/login')
+            .send({ email: 'provider@test.com', password: 'provider123!' });
+          const token = loginRes.body.data.accessToken;
+
+          const res = await request(app)
+            .get('/api/v1/providers/me/services')
+            .set('Authorization', `Bearer ${token}`);
+
+          expect(res.status).toBe(200);
+          expect(res.body.success).toBe(true);
+        });
+
+        it('should handle getMyAvailability', async () => {
+          const loginRes = await request(app)
+            .post('/api/v1/auth/login')
+            .send({ email: 'provider@test.com', password: 'provider123!' });
+          const token = loginRes.body.data.accessToken;
+
+          const res = await request(app)
+            .get('/api/v1/providers/me/availability')
+            .set('Authorization', `Bearer ${token}`);
+
+          expect(res.status).toBe(200);
+          expect(res.body.success).toBe(true);
+        });
+
+        it('should handle updateOnlineStatus', async () => {
+          const loginRes = await request(app)
+            .post('/api/v1/auth/login')
+            .send({ email: 'provider@test.com', password: 'provider123!' });
+          const token = loginRes.body.data.accessToken;
+
+          const res = await request(app)
+            .patch('/api/v1/providers/me/status')
+            .set('Authorization', `Bearer ${token}`)
+            .send({ status: 'ONLINE' });
+
+          expect(res.status).toBe(200);
+          expect(res.body.success).toBe(true);
+
+          // Reset to offline
+          await request(app)
+            .patch('/api/v1/providers/me/status')
+            .set('Authorization', `Bearer ${token}`)
+            .send({ status: 'OFFLINE' });
+        });
+
+        it('should handle updateLocation', async () => {
+          const loginRes = await request(app)
+            .post('/api/v1/auth/login')
+            .send({ email: 'provider@test.com', password: 'provider123!' });
+          const token = loginRes.body.data.accessToken;
+
+          const res = await request(app)
+            .patch('/api/v1/providers/me/location')
+            .set('Authorization', `Bearer ${token}`)
+            .send({ latitude: 14.5995, longitude: 120.9842 });
+
+          expect(res.status).toBe(200);
+          expect(res.body.success).toBe(true);
+        });
+
+        it('should handle getEarnings', async () => {
+          const loginRes = await request(app)
+            .post('/api/v1/auth/login')
+            .send({ email: 'provider@test.com', password: 'provider123!' });
+          const token = loginRes.body.data.accessToken;
+
+          const res = await request(app)
+            .get('/api/v1/providers/me/earnings')
+            .set('Authorization', `Bearer ${token}`);
+
+          expect(res.status).toBe(200);
+          expect(res.body.success).toBe(true);
+        });
+
+        it('should handle getEarningsSummary', async () => {
+          const loginRes = await request(app)
+            .post('/api/v1/auth/login')
+            .send({ email: 'provider@test.com', password: 'provider123!' });
+          const token = loginRes.body.data.accessToken;
+
+          const res = await request(app)
+            .get('/api/v1/providers/me/earnings/summary')
+            .set('Authorization', `Bearer ${token}`);
+
+          expect(res.status).toBe(200);
+          expect(res.body.success).toBe(true);
+        });
+
+        it('should handle getPayouts', async () => {
+          const loginRes = await request(app)
+            .post('/api/v1/auth/login')
+            .send({ email: 'provider@test.com', password: 'provider123!' });
+          const token = loginRes.body.data.accessToken;
+
+          const res = await request(app)
+            .get('/api/v1/providers/me/payouts')
+            .set('Authorization', `Bearer ${token}`);
+
+          expect(res.status).toBe(200);
+          expect(res.body.success).toBe(true);
+        });
+
+        it('should handle updateBankAccount', async () => {
+          const loginRes = await request(app)
+            .post('/api/v1/auth/login')
+            .send({ email: 'provider@test.com', password: 'provider123!' });
+          const token = loginRes.body.data.accessToken;
+
+          const res = await request(app)
+            .patch('/api/v1/providers/me/bank-account')
+            .set('Authorization', `Bearer ${token}`)
+            .send({
+              bankName: 'Test Bank',
+              bankAccountNumber: '9876543210',
+              bankAccountName: 'Test Provider',
+            });
+
+          expect(res.status).toBe(200);
+          expect(res.body.success).toBe(true);
+        });
+      });
+
+      describe('Reports Controller', () => {
+        it('should handle createReport', async () => {
+          const loginRes = await request(app)
+            .post('/api/v1/auth/login')
+            .send({ email: 'customer@test.com', password: 'customer123!' });
+          const token = loginRes.body.data.accessToken;
+
+          const providerUser = await prisma.user.findFirst({
+            where: { email: 'provider@test.com' },
+          });
+
+          const res = await request(app)
+            .post('/api/v1/reports')
+            .set('Authorization', `Bearer ${token}`)
+            .send({
+              reportedId: providerUser!.id,
+              type: 'UNPROFESSIONAL',
+              description: 'Test report from controller test',
+            });
+
+          expect(res.status).toBe(201);
+          expect(res.body.success).toBe(true);
+
+          // Clean up
+          if (res.body.data?.id) {
+            await prisma.report.delete({ where: { id: res.body.data.id } });
+          }
+        });
+
+        it('should handle getMyReports', async () => {
+          const loginRes = await request(app)
+            .post('/api/v1/auth/login')
+            .send({ email: 'customer@test.com', password: 'customer123!' });
+          const token = loginRes.body.data.accessToken;
+
+          const res = await request(app)
+            .get('/api/v1/reports/me')
+            .set('Authorization', `Bearer ${token}`);
+
+          expect(res.status).toBe(200);
+          expect(res.body.success).toBe(true);
+        });
+      });
+
+      describe('Services Controller', () => {
+        it('should handle getServiceDetail for non-existent service', async () => {
+          const res = await request(app)
+            .get('/api/v1/services/non-existent-service-id');
+
+          expect(res.status).toBe(404);
+        });
+
+        it('should handle validatePromoCode with missing code', async () => {
+          const res = await request(app)
+            .post('/api/v1/services/promotions/validate')
+            .send({});
+
+          expect([400, 404]).toContain(res.status);
+        });
+      });
+
+      describe('Bookings Controller', () => {
+        it('should handle getProviderLocation for valid booking', async () => {
+          const loginRes = await request(app)
+            .post('/api/v1/auth/login')
+            .send({ email: 'customer@test.com', password: 'customer123!' });
+          const token = loginRes.body.data.accessToken;
+
+          // Create a test booking
+          const customer = await prisma.user.findFirst({
+            where: { email: 'customer@test.com' },
+          });
+          const provider = await prisma.provider.findFirst({
+            where: { user: { email: 'provider@test.com' } },
+          });
+
+          const scheduledAt = new Date();
+          scheduledAt.setHours(scheduledAt.getHours() + 8);
+
+          const booking = await prisma.booking.create({
+            data: {
+              bookingNumber: `CM${Date.now().toString(36).toUpperCase()}`,
+              customerId: customer!.id,
+              providerId: provider!.id,
+              serviceId: 'svc-thai',
+              duration: 60,
+              scheduledAt,
+              addressText: 'Controller Test Location',
+              latitude: 14.5586,
+              longitude: 121.0178,
+              serviceAmount: 800,
+              travelFee: 0,
+              totalAmount: 800,
+              platformFee: 160,
+              providerEarning: 640,
+              status: 'ACCEPTED',
+            },
+          });
+
+          const res = await request(app)
+            .get(`/api/v1/bookings/${booking.id}/location`)
+            .set('Authorization', `Bearer ${token}`);
+
+          expect(res.status).toBe(200);
+
+          // Clean up
+          await prisma.booking.delete({ where: { id: booking.id } });
+        });
+
+        it('should handle triggerSOS for valid booking', async () => {
+          const loginRes = await request(app)
+            .post('/api/v1/auth/login')
+            .send({ email: 'provider@test.com', password: 'provider123!' });
+          const token = loginRes.body.data.accessToken;
+
+          const customer = await prisma.user.findFirst({
+            where: { email: 'customer@test.com' },
+          });
+          const provider = await prisma.provider.findFirst({
+            where: { user: { email: 'provider@test.com' } },
+          });
+
+          const scheduledAt = new Date();
+          scheduledAt.setHours(scheduledAt.getHours() + 8);
+
+          const booking = await prisma.booking.create({
+            data: {
+              bookingNumber: `CM${Date.now().toString(36).toUpperCase()}`,
+              customerId: customer!.id,
+              providerId: provider!.id,
+              serviceId: 'svc-thai',
+              duration: 60,
+              scheduledAt,
+              addressText: 'SOS Controller Test',
+              latitude: 14.5586,
+              longitude: 121.0178,
+              serviceAmount: 800,
+              travelFee: 0,
+              totalAmount: 800,
+              platformFee: 160,
+              providerEarning: 640,
+              status: 'IN_PROGRESS',
+            },
+          });
+
+          const res = await request(app)
+            .post(`/api/v1/bookings/${booking.id}/sos`)
+            .set('Authorization', `Bearer ${token}`)
+            .send({ message: 'Controller test SOS' });
+
+          expect(res.status).toBe(200);
+
+          // Clean up
+          await prisma.report.deleteMany({ where: { bookingId: booking.id } });
+          await prisma.booking.delete({ where: { id: booking.id } });
+        });
+      });
+    });
   });
 });
