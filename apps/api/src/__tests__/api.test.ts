@@ -4294,6 +4294,305 @@ describe('API Endpoints', () => {
       });
     });
 
+    describe('Booking Service', () => {
+      it('should get provider location from cache', async () => {
+        const { bookingService } = await import('../services/bookings.service.js');
+        const { locationCache } = await import('../config/redis.js');
+
+        // Create a booking for the customer
+        const customer = await prisma.user.findFirst({
+          where: { email: 'customer@test.com' },
+        });
+
+        const provider = await prisma.provider.findFirst({
+          where: { user: { email: 'provider@test.com' } },
+        });
+
+        const scheduledAt = new Date();
+        scheduledAt.setHours(scheduledAt.getHours() + 8);
+
+        const booking = await prisma.booking.create({
+          data: {
+            bookingNumber: `CM${Date.now().toString(36).toUpperCase()}`,
+            customerId: customer!.id,
+            providerId: provider!.id,
+            serviceId: 'svc-thai',
+            duration: 60,
+            scheduledAt,
+            addressText: 'Test Location',
+            latitude: 14.5586,
+            longitude: 121.0178,
+            serviceAmount: 800,
+            travelFee: 0,
+            totalAmount: 800,
+            platformFee: 160,
+            providerEarning: 640,
+          },
+        });
+
+        // Set location in cache
+        await locationCache.setBookingLocation(booking.id, 14.5600, 121.0200, 15);
+
+        // Get provider location via service
+        const location = await bookingService.getProviderLocation(customer!.id, booking.id);
+
+        expect(location).toHaveProperty('latitude', 14.5600);
+        expect(location).toHaveProperty('longitude', 121.0200);
+        expect(location).toHaveProperty('eta', 15);
+        expect(location).toHaveProperty('lastUpdatedAt');
+
+        // Clean up
+        await prisma.booking.delete({ where: { id: booking.id } });
+      });
+
+      it('should return null values when no location in cache', async () => {
+        const { bookingService } = await import('../services/bookings.service.js');
+
+        // Create a booking for the customer
+        const customer = await prisma.user.findFirst({
+          where: { email: 'customer@test.com' },
+        });
+
+        const provider = await prisma.provider.findFirst({
+          where: { user: { email: 'provider@test.com' } },
+        });
+
+        const scheduledAt = new Date();
+        scheduledAt.setHours(scheduledAt.getHours() + 8);
+
+        const booking = await prisma.booking.create({
+          data: {
+            bookingNumber: `CM${Date.now().toString(36).toUpperCase()}`,
+            customerId: customer!.id,
+            providerId: provider!.id,
+            serviceId: 'svc-thai',
+            duration: 60,
+            scheduledAt,
+            addressText: 'Test No Location',
+            latitude: 14.5586,
+            longitude: 121.0178,
+            serviceAmount: 800,
+            travelFee: 0,
+            totalAmount: 800,
+            platformFee: 160,
+            providerEarning: 640,
+          },
+        });
+
+        // Get provider location via service (no cache set)
+        const location = await bookingService.getProviderLocation(customer!.id, booking.id);
+
+        expect(location).toEqual({
+          lat: null,
+          lng: null,
+          eta: null,
+          lastUpdatedAt: null,
+        });
+
+        // Clean up
+        await prisma.booking.delete({ where: { id: booking.id } });
+      });
+
+      it('should throw error when getting location for non-customer booking', async () => {
+        const { bookingService } = await import('../services/bookings.service.js');
+
+        // Try to get location with wrong user ID
+        await expect(
+          bookingService.getProviderLocation('wrong-user-id', 'booking-id')
+        ).rejects.toThrow('Booking not found');
+      });
+
+      it('should trigger SOS and create report', async () => {
+        const { bookingService } = await import('../services/bookings.service.js');
+
+        // Get provider user (provider triggering SOS sets reportedId to customerId which is valid)
+        const providerUser = await prisma.user.findFirst({
+          where: { email: 'provider@test.com' },
+        });
+
+        const customer = await prisma.user.findFirst({
+          where: { email: 'customer@test.com' },
+        });
+
+        const provider = await prisma.provider.findFirst({
+          where: { user: { email: 'provider@test.com' } },
+        });
+
+        const scheduledAt = new Date();
+        scheduledAt.setHours(scheduledAt.getHours() + 8);
+
+        const booking = await prisma.booking.create({
+          data: {
+            bookingNumber: `CM${Date.now().toString(36).toUpperCase()}`,
+            customerId: customer!.id,
+            providerId: provider!.id,
+            serviceId: 'svc-thai',
+            duration: 60,
+            scheduledAt,
+            addressText: 'SOS Test Location',
+            latitude: 14.5586,
+            longitude: 121.0178,
+            serviceAmount: 800,
+            travelFee: 0,
+            totalAmount: 800,
+            platformFee: 160,
+            providerEarning: 640,
+            status: 'IN_PROGRESS',
+          },
+        });
+
+        // Trigger SOS via service (provider triggers, so reportedId = customerId which is valid User.id)
+        const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+        await bookingService.triggerSOS(providerUser!.id, booking.id, { message: 'Help needed!' });
+        consoleSpy.mockRestore();
+
+        // Verify report was created
+        const report = await prisma.report.findFirst({
+          where: { bookingId: booking.id },
+        });
+
+        expect(report).toBeDefined();
+        expect(report?.severity).toBe('CRITICAL');
+        expect(report?.description).toContain('SOS triggered');
+        expect(report?.description).toContain('Help needed!');
+
+        // Clean up
+        await prisma.report.delete({ where: { id: report!.id } });
+        await prisma.booking.delete({ where: { id: booking.id } });
+      });
+
+      it('should trigger SOS with default message when no message provided', async () => {
+        const { bookingService } = await import('../services/bookings.service.js');
+
+        // Get provider user (provider triggering SOS sets reportedId to customerId which is valid)
+        const providerUser = await prisma.user.findFirst({
+          where: { email: 'provider@test.com' },
+        });
+
+        const customer = await prisma.user.findFirst({
+          where: { email: 'customer@test.com' },
+        });
+
+        const provider = await prisma.provider.findFirst({
+          where: { user: { email: 'provider@test.com' } },
+        });
+
+        const scheduledAt = new Date();
+        scheduledAt.setHours(scheduledAt.getHours() + 8);
+
+        const booking = await prisma.booking.create({
+          data: {
+            bookingNumber: `CM${Date.now().toString(36).toUpperCase()}`,
+            customerId: customer!.id,
+            providerId: provider!.id,
+            serviceId: 'svc-thai',
+            duration: 60,
+            scheduledAt,
+            addressText: 'SOS Default Message Test',
+            latitude: 14.5586,
+            longitude: 121.0178,
+            serviceAmount: 800,
+            travelFee: 0,
+            totalAmount: 800,
+            platformFee: 160,
+            providerEarning: 640,
+            status: 'IN_PROGRESS',
+          },
+        });
+
+        // Trigger SOS without message (provider triggers)
+        const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+        await bookingService.triggerSOS(providerUser!.id, booking.id, {});
+        consoleSpy.mockRestore();
+
+        // Verify report was created with default message
+        const report = await prisma.report.findFirst({
+          where: { bookingId: booking.id },
+        });
+
+        expect(report).toBeDefined();
+        expect(report?.description).toContain('Emergency');
+
+        // Clean up
+        await prisma.report.delete({ where: { id: report!.id } });
+        await prisma.booking.delete({ where: { id: booking.id } });
+      });
+
+      it('should update booking status to COMPLETED and update provider earnings', async () => {
+        const { bookingService } = await import('../services/bookings.service.js');
+
+        // Get provider user
+        const providerUser = await prisma.user.findFirst({
+          where: { email: 'provider@test.com' },
+        });
+
+        const provider = await prisma.provider.findFirst({
+          where: { userId: providerUser!.id },
+        });
+
+        const customer = await prisma.user.findFirst({
+          where: { email: 'customer@test.com' },
+        });
+
+        const scheduledAt = new Date();
+        scheduledAt.setHours(scheduledAt.getHours() + 8);
+
+        // Get initial provider balance
+        const initialBalance = provider!.balance;
+        const initialEarnings = provider!.totalEarnings;
+        const initialCompletedBookings = provider!.completedBookings;
+
+        const booking = await prisma.booking.create({
+          data: {
+            bookingNumber: `CM${Date.now().toString(36).toUpperCase()}`,
+            customerId: customer!.id,
+            providerId: provider!.id,
+            serviceId: 'svc-thai',
+            duration: 60,
+            scheduledAt,
+            addressText: 'Completion Test',
+            latitude: 14.5586,
+            longitude: 121.0178,
+            serviceAmount: 800,
+            travelFee: 100,
+            totalAmount: 900,
+            platformFee: 160,
+            providerEarning: 740,
+            status: 'IN_PROGRESS',
+          },
+        });
+
+        // Update status to COMPLETED
+        await bookingService.updateBookingStatus(providerUser!.id, booking.id, 'COMPLETED');
+
+        // Verify provider earnings were updated
+        const updatedProvider = await prisma.provider.findUnique({
+          where: { id: provider!.id },
+        });
+
+        expect(updatedProvider!.balance).toBe(initialBalance + 740);
+        expect(updatedProvider!.totalEarnings).toBe(initialEarnings + 740);
+        expect(updatedProvider!.completedBookings).toBe(initialCompletedBookings + 1);
+
+        // Verify booking has completedAt timestamp
+        const updatedBooking = await prisma.booking.findUnique({
+          where: { id: booking.id },
+        });
+        expect(updatedBooking?.completedAt).toBeDefined();
+
+        // Clean up - restore provider balance
+        await prisma.provider.update({
+          where: { id: provider!.id },
+          data: {
+            balance: initialBalance,
+            totalEarnings: initialEarnings,
+            completedBookings: initialCompletedBookings,
+          },
+        });
+        await prisma.booking.delete({ where: { id: booking.id } });
+      });
+    });
+
     describe('Redis Cache Utilities', () => {
       it('should set and get cached values', async () => {
         const { cache } = await import('../config/redis.js');
