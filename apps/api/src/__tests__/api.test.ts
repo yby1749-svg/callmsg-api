@@ -2824,4 +2824,245 @@ describe('API Endpoints', () => {
       });
     });
   });
+
+  // ============================================================================
+  // MIDDLEWARE TESTS
+  // ============================================================================
+
+  describe('Middleware', () => {
+    describe('Authentication Middleware', () => {
+      it('should reject request with no token', async () => {
+        const res = await request(app).get('/api/v1/users/me');
+
+        expect(res.status).toBe(401);
+        expect(res.body.error).toBe('No token provided');
+      });
+
+      it('should reject request with invalid Bearer format', async () => {
+        const res = await request(app)
+          .get('/api/v1/users/me')
+          .set('Authorization', 'InvalidFormat token123');
+
+        expect(res.status).toBe(401);
+        expect(res.body.error).toBe('No token provided');
+      });
+
+      it('should reject request with malformed token', async () => {
+        const res = await request(app)
+          .get('/api/v1/users/me')
+          .set('Authorization', 'Bearer not-a-valid-jwt');
+
+        expect(res.status).toBe(401);
+        expect(res.body.error).toBe('Invalid token');
+      });
+
+      it('should reject request with expired token', async () => {
+        // Create an expired token (exp in the past)
+        const jwt = require('jsonwebtoken');
+        const expiredToken = jwt.sign(
+          { userId: 'test-id', email: 'test@test.com', role: 'CUSTOMER' },
+          process.env.JWT_SECRET || 'secret',
+          { expiresIn: '-1h' }
+        );
+
+        const res = await request(app)
+          .get('/api/v1/users/me')
+          .set('Authorization', `Bearer ${expiredToken}`);
+
+        expect(res.status).toBe(401);
+        expect(res.body.error).toBe('Token expired');
+      });
+
+      it('should reject request when user not found', async () => {
+        const jwt = require('jsonwebtoken');
+        const tokenForNonExistentUser = jwt.sign(
+          { userId: 'non-existent-user-id', email: 'ghost@test.com', role: 'CUSTOMER' },
+          process.env.JWT_SECRET || 'secret',
+          { expiresIn: '1h' }
+        );
+
+        const res = await request(app)
+          .get('/api/v1/users/me')
+          .set('Authorization', `Bearer ${tokenForNonExistentUser}`);
+
+        expect(res.status).toBe(401);
+        expect(res.body.error).toBe('User not found');
+      });
+
+      it('should reject request when user account is inactive', async () => {
+        // Create an inactive user
+        const inactiveUser = await prisma.user.create({
+          data: {
+            email: `inactive-${Date.now()}@test.com`,
+            phone: `+63${Date.now().toString().slice(-10)}`,
+            passwordHash: 'test',
+            firstName: 'Inactive',
+            lastName: 'User',
+            status: 'SUSPENDED',
+          },
+        });
+
+        const jwt = require('jsonwebtoken');
+        const tokenForInactiveUser = jwt.sign(
+          { userId: inactiveUser.id, email: inactiveUser.email, role: 'CUSTOMER' },
+          process.env.JWT_SECRET || 'secret',
+          { expiresIn: '1h' }
+        );
+
+        const res = await request(app)
+          .get('/api/v1/users/me')
+          .set('Authorization', `Bearer ${tokenForInactiveUser}`);
+
+        expect(res.status).toBe(401);
+        expect(res.body.error).toBe('Account is not active');
+
+        // Clean up
+        await prisma.user.delete({ where: { id: inactiveUser.id } });
+      });
+    });
+
+    describe('requireProvider Middleware', () => {
+      it('should reject non-provider user', async () => {
+        // Login as customer
+        const loginRes = await request(app)
+          .post('/api/v1/auth/login')
+          .send({ email: 'customer@test.com', password: 'customer123!' });
+        const customerToken = loginRes.body.data.accessToken;
+
+        const res = await request(app)
+          .get('/api/v1/providers/me/profile')
+          .set('Authorization', `Bearer ${customerToken}`);
+
+        expect(res.status).toBe(403);
+        expect(res.body.error).toBe('Provider access required');
+      });
+
+      it('should reject unapproved provider', async () => {
+        // Create a pending provider with ACTIVE user status
+        const pendingUser = await prisma.user.create({
+          data: {
+            email: `pending-provider-${Date.now()}@test.com`,
+            phone: `+63${Date.now().toString().slice(-10)}`,
+            passwordHash: '$2b$10$test',
+            firstName: 'Pending',
+            lastName: 'Provider',
+            role: 'PROVIDER',
+            status: 'ACTIVE', // User must be active
+          },
+        });
+
+        await prisma.provider.create({
+          data: {
+            userId: pendingUser.id,
+            displayName: 'Pending Provider',
+            status: 'PENDING',
+            serviceAreas: ['MAKATI'],
+          },
+        });
+
+        const jwt = require('jsonwebtoken');
+        const pendingProviderToken = jwt.sign(
+          { userId: pendingUser.id, email: pendingUser.email, role: 'PROVIDER' },
+          process.env.JWT_SECRET || 'secret',
+          { expiresIn: '1h' }
+        );
+
+        const res = await request(app)
+          .get('/api/v1/providers/me/profile')
+          .set('Authorization', `Bearer ${pendingProviderToken}`);
+
+        expect(res.status).toBe(403);
+        expect(res.body.error).toBe('Provider not approved');
+
+        // Clean up
+        await prisma.provider.delete({ where: { userId: pendingUser.id } });
+        await prisma.user.delete({ where: { id: pendingUser.id } });
+      });
+    });
+
+    describe('Error Handler Middleware', () => {
+      it('should return error response for invalid requests', async () => {
+        // Trigger an error by accessing a protected route with bad token format
+        const res = await request(app)
+          .get('/api/v1/users/me')
+          .set('Authorization', 'Bearer invalid.token.format');
+
+        expect(res.status).toBe(401);
+        expect(res.body).toHaveProperty('error');
+      });
+
+      it('should handle Prisma unique constraint errors (P2002)', async () => {
+        // Try to create a user with duplicate email
+        const existingEmail = 'customer@test.com';
+
+        const res = await request(app)
+          .post('/api/v1/auth/register')
+          .send({
+            email: existingEmail,
+            password: 'password123!',
+            phone: '+639171234999',
+            firstName: 'Duplicate',
+            lastName: 'User',
+          });
+
+        // App returns 409 Conflict for duplicate entries
+        expect(res.status).toBe(409);
+        expect(res.body.error).toContain('already');
+      });
+
+      it('should handle not found routes', async () => {
+        const res = await request(app).get('/api/v1/non-existent-route');
+
+        expect(res.status).toBe(404);
+        expect(res.body.error).toBe('Not Found');
+        expect(res.body.message).toContain('/api/v1/non-existent-route');
+      });
+
+      it('should handle Prisma record not found errors (P2025)', async () => {
+        // Login as admin
+        const loginRes = await request(app)
+          .post('/api/v1/auth/login')
+          .send({ email: 'admin@callmsg.com', password: 'admin123!' });
+        const adminToken = loginRes.body.data.accessToken;
+
+        // Try to get a non-existent provider
+        const res = await request(app)
+          .get('/api/v1/admin/providers/non-existent-provider-id')
+          .set('Authorization', `Bearer ${adminToken}`);
+
+        expect(res.status).toBe(404);
+      });
+    });
+
+    describe('requireAdmin Middleware', () => {
+      it('should reject non-admin users', async () => {
+        // Login as customer
+        const loginRes = await request(app)
+          .post('/api/v1/auth/login')
+          .send({ email: 'customer@test.com', password: 'customer123!' });
+        const customerToken = loginRes.body.data.accessToken;
+
+        const res = await request(app)
+          .get('/api/v1/admin/dashboard')
+          .set('Authorization', `Bearer ${customerToken}`);
+
+        expect(res.status).toBe(403);
+        expect(res.body.error).toBe('Insufficient permissions');
+      });
+
+      it('should allow admin users', async () => {
+        // Login as admin
+        const loginRes = await request(app)
+          .post('/api/v1/auth/login')
+          .send({ email: 'admin@callmsg.com', password: 'admin123!' });
+        const adminToken = loginRes.body.data.accessToken;
+
+        const res = await request(app)
+          .get('/api/v1/admin/dashboard')
+          .set('Authorization', `Bearer ${adminToken}`);
+
+        expect(res.status).toBe(200);
+      });
+    });
+  });
 });
