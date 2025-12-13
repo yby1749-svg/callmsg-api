@@ -3605,6 +3605,248 @@ describe('API Endpoints', () => {
       });
     });
 
+    describe('optionalAuth Middleware', () => {
+      it('should allow access without token', async () => {
+        const res = await request(app).get('/api/v1/providers');
+
+        expect(res.status).toBe(200);
+        expect(res.body.success).toBe(true);
+      });
+
+      it('should attach user when valid token provided', async () => {
+        // Login to get token
+        const loginRes = await request(app)
+          .post('/api/v1/auth/login')
+          .send({ email: 'customer@test.com', password: 'customer123!' });
+        const token = loginRes.body.data.accessToken;
+
+        const res = await request(app)
+          .get('/api/v1/providers')
+          .set('Authorization', `Bearer ${token}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body.success).toBe(true);
+      });
+
+      it('should continue without user when token is invalid', async () => {
+        const res = await request(app)
+          .get('/api/v1/providers')
+          .set('Authorization', 'Bearer invalid.token.here');
+
+        // optionalAuth ignores errors and continues
+        expect(res.status).toBe(200);
+        expect(res.body.success).toBe(true);
+      });
+
+      it('should continue without user when token is expired', async () => {
+        // Create an expired token
+        const expiredToken = jwt.sign(
+          { userId: 'test-user-id', email: 'test@test.com', role: 'CUSTOMER' },
+          process.env.JWT_SECRET || 'secret',
+          { expiresIn: '-1h' } // Already expired
+        );
+
+        const res = await request(app)
+          .get('/api/v1/providers')
+          .set('Authorization', `Bearer ${expiredToken}`);
+
+        // optionalAuth ignores errors and continues
+        expect(res.status).toBe(200);
+        expect(res.body.success).toBe(true);
+      });
+
+      it('should continue without user when user not found', async () => {
+        // Create token with non-existent user ID
+        const tokenForNonExistentUser = jwt.sign(
+          { userId: 'non-existent-user-id', email: 'ghost@test.com', role: 'CUSTOMER' },
+          process.env.JWT_SECRET || 'secret',
+          { expiresIn: '1h' }
+        );
+
+        const res = await request(app)
+          .get('/api/v1/providers')
+          .set('Authorization', `Bearer ${tokenForNonExistentUser}`);
+
+        // optionalAuth continues even if user not found (user stays undefined)
+        expect(res.status).toBe(200);
+        expect(res.body.success).toBe(true);
+      });
+
+      it('should not attach user when user status is not active', async () => {
+        // Create an inactive user
+        const inactiveUser = await prisma.user.create({
+          data: {
+            email: `inactive-opt-${Date.now()}@test.com`,
+            phone: `+63${Date.now().toString().slice(-10)}`,
+            passwordHash: '$2b$10$test',
+            firstName: 'Inactive',
+            lastName: 'User',
+            role: 'CUSTOMER',
+            status: 'SUSPENDED',
+          },
+        });
+
+        const tokenForInactiveUser = jwt.sign(
+          { userId: inactiveUser.id, email: inactiveUser.email, role: 'CUSTOMER' },
+          process.env.JWT_SECRET || 'secret',
+          { expiresIn: '1h' }
+        );
+
+        const res = await request(app)
+          .get('/api/v1/providers')
+          .set('Authorization', `Bearer ${tokenForInactiveUser}`);
+
+        // optionalAuth continues but doesn't attach inactive user
+        expect(res.status).toBe(200);
+        expect(res.body.success).toBe(true);
+
+        // Clean up
+        await prisma.user.delete({ where: { id: inactiveUser.id } });
+      });
+    });
+
+    describe('requireRole Middleware', () => {
+      it('should reject when no user is attached', async () => {
+        // Directly test the middleware
+        const { requireRole } = await import('../middleware/auth.js');
+
+        const middleware = requireRole('ADMIN');
+        const mockReq = { user: undefined } as any;
+        const mockRes = {
+          status: jest.fn().mockReturnThis(),
+          json: jest.fn(),
+        } as any;
+        const mockNext = jest.fn();
+
+        middleware(mockReq, mockRes, mockNext);
+
+        expect(mockRes.status).toHaveBeenCalledWith(401);
+        expect(mockRes.json).toHaveBeenCalledWith({ error: 'Authentication required' });
+        expect(mockNext).not.toHaveBeenCalled();
+      });
+
+      it('should reject when user has insufficient role', async () => {
+        const { requireRole } = await import('../middleware/auth.js');
+
+        const middleware = requireRole('ADMIN');
+        const mockReq = { user: { id: '1', email: 'test@test.com', role: 'CUSTOMER' } } as any;
+        const mockRes = {
+          status: jest.fn().mockReturnThis(),
+          json: jest.fn(),
+        } as any;
+        const mockNext = jest.fn();
+
+        middleware(mockReq, mockRes, mockNext);
+
+        expect(mockRes.status).toHaveBeenCalledWith(403);
+        expect(mockRes.json).toHaveBeenCalledWith({ error: 'Insufficient permissions' });
+        expect(mockNext).not.toHaveBeenCalled();
+      });
+
+      it('should allow when user has correct role', async () => {
+        const { requireRole } = await import('../middleware/auth.js');
+
+        const middleware = requireRole('ADMIN', 'PROVIDER');
+        const mockReq = { user: { id: '1', email: 'test@test.com', role: 'PROVIDER' } } as any;
+        const mockRes = {
+          status: jest.fn().mockReturnThis(),
+          json: jest.fn(),
+        } as any;
+        const mockNext = jest.fn();
+
+        middleware(mockReq, mockRes, mockNext);
+
+        expect(mockNext).toHaveBeenCalled();
+        expect(mockRes.status).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('requireProvider Middleware Direct Tests', () => {
+      it('should reject when no user is attached', async () => {
+        const { requireProvider } = await import('../middleware/auth.js');
+
+        const mockReq = { user: undefined } as any;
+        const mockRes = {
+          status: jest.fn().mockReturnThis(),
+          json: jest.fn(),
+        } as any;
+        const mockNext = jest.fn();
+
+        await requireProvider(mockReq, mockRes, mockNext);
+
+        expect(mockRes.status).toHaveBeenCalledWith(401);
+        expect(mockRes.json).toHaveBeenCalledWith({ error: 'Authentication required' });
+        expect(mockNext).not.toHaveBeenCalled();
+      });
+
+      it('should reject when provider record does not exist', async () => {
+        const { requireProvider } = await import('../middleware/auth.js');
+
+        // Create a user without provider record
+        const userWithoutProvider = await prisma.user.create({
+          data: {
+            email: `no-provider-${Date.now()}@test.com`,
+            phone: `+63${Date.now().toString().slice(-10)}`,
+            passwordHash: '$2b$10$test',
+            firstName: 'No',
+            lastName: 'Provider',
+            role: 'PROVIDER',
+            status: 'ACTIVE',
+          },
+        });
+
+        const mockReq = {
+          user: { id: userWithoutProvider.id, email: userWithoutProvider.email, role: 'PROVIDER' },
+        } as any;
+        const mockRes = {
+          status: jest.fn().mockReturnThis(),
+          json: jest.fn(),
+        } as any;
+        const mockNext = jest.fn();
+
+        await requireProvider(mockReq, mockRes, mockNext);
+
+        expect(mockRes.status).toHaveBeenCalledWith(403);
+        expect(mockRes.json).toHaveBeenCalledWith({ error: 'Provider not approved' });
+
+        // Clean up
+        await prisma.user.delete({ where: { id: userWithoutProvider.id } });
+      });
+    });
+
+    describe('authenticate Middleware Error Handling', () => {
+      it('should pass generic errors to next handler', async () => {
+        const { authenticate } = await import('../middleware/auth.js');
+
+        // Mock prisma to throw a generic error
+        const originalFindUnique = prisma.user.findUnique;
+        prisma.user.findUnique = jest.fn().mockRejectedValue(new Error('Database connection failed'));
+
+        const validToken = jwt.sign(
+          { userId: 'test-id', email: 'test@test.com', role: 'CUSTOMER' },
+          process.env.JWT_SECRET || 'secret',
+          { expiresIn: '1h' }
+        );
+
+        const mockReq = {
+          headers: { authorization: `Bearer ${validToken}` },
+        } as any;
+        const mockRes = {
+          status: jest.fn().mockReturnThis(),
+          json: jest.fn(),
+        } as any;
+        const mockNext = jest.fn();
+
+        await authenticate(mockReq, mockRes, mockNext);
+
+        expect(mockNext).toHaveBeenCalledWith(expect.any(Error));
+        expect(mockNext.mock.calls[0][0].message).toBe('Database connection failed');
+
+        // Restore
+        prisma.user.findUnique = originalFindUnique;
+      });
+    });
+
     describe('Error Handler Middleware', () => {
       it('should return error response for invalid requests', async () => {
         // Trigger an error by accessing a protected route with bad token format
