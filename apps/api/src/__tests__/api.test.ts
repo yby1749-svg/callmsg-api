@@ -3782,6 +3782,138 @@ describe('API Endpoints', () => {
         expect(res.status).toBe(404);
         expect(res.body).toHaveProperty('error');
       });
+
+      it('should handle validation errors with incomplete data', async () => {
+        // Send incomplete data to registration endpoint
+        const res = await request(app)
+          .post('/api/v1/auth/register')
+          .send({
+            email: 'valid@email.com',
+            // Missing required fields: password, phone, firstName, lastName
+          });
+
+        // Should return an error status
+        expect([400, 500]).toContain(res.status);
+        // Response should have some body (even if empty on 500)
+        expect(res.body).toBeDefined();
+      });
+
+      it('should handle P2002 duplicate with meta target info', async () => {
+        // Create a user, then try to create another with same email
+        // This should trigger P2002 with meta.target containing the field names
+        const testEmail = 'duplicate-test@example.com';
+        const testPhone = `+63${Date.now().toString().slice(-10)}`;
+
+        // First registration
+        await request(app)
+          .post('/api/v1/auth/register')
+          .send({
+            email: testEmail,
+            phone: testPhone,
+            password: 'password123!',
+            firstName: 'First',
+            lastName: 'User',
+          });
+
+        // Second registration with same email - triggers P2002
+        const res = await request(app)
+          .post('/api/v1/auth/register')
+          .send({
+            email: testEmail,
+            phone: '+639999999999',
+            password: 'password123!',
+            firstName: 'Second',
+            lastName: 'User',
+          });
+
+        expect([400, 409]).toContain(res.status);
+        expect(res.body).toHaveProperty('error');
+        // Should contain duplicate/exists message
+        expect(res.body.error.toLowerCase()).toMatch(/duplicate|exists|already/);
+
+        // Clean up
+        await prisma.user.deleteMany({ where: { email: testEmail } });
+      });
+
+      it('should handle default Prisma error codes', async () => {
+        // Login as admin
+        const loginRes = await request(app)
+          .post('/api/v1/auth/login')
+          .send({ email: 'admin@callmsg.com', password: 'admin123!' });
+        const adminToken = loginRes.body.data.accessToken;
+
+        // Try to create a promotion with invalid date format
+        // This might trigger a different Prisma error code
+        const res = await request(app)
+          .post('/api/v1/admin/promotions')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            code: 'TEST_PROMO',
+            discountType: 'PERCENTAGE',
+            discountValue: 10,
+            startDate: 'invalid-date',
+            endDate: 'also-invalid',
+          });
+
+        // Should get error response
+        expect([400, 500]).toContain(res.status);
+        expect(res.body).toHaveProperty('error');
+      });
+
+      it('should handle JWT malformed token error', async () => {
+        // Create a malformed JWT that will cause JsonWebTokenError
+        // This is a properly structured but invalid JWT
+        const malformedToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZXN0IjoidmFsdWUifQ.invalid_signature';
+
+        const res = await request(app)
+          .get('/api/v1/users/me')
+          .set('Authorization', `Bearer ${malformedToken}`);
+
+        // JWT errors return 401 for invalid/unauthorized
+        expect([401, 500]).toContain(res.status);
+        expect(res.body).toHaveProperty('error');
+      });
+
+      it('should handle JWT expired token error', async () => {
+        // Create an expired JWT token
+        const expiredToken = jwt.sign(
+          { userId: 'test-user-id', email: 'test@test.com', role: 'CUSTOMER' },
+          process.env.JWT_SECRET || 'test-secret',
+          { expiresIn: '-1s' } // Already expired
+        );
+
+        const res = await request(app)
+          .get('/api/v1/users/me')
+          .set('Authorization', `Bearer ${expiredToken}`);
+
+        expect(res.status).toBe(401);
+        expect(res.body.error).toMatch(/expired|token/i);
+      });
+
+      it('should handle generic errors with message', async () => {
+        // Try to trigger a generic error by making an extremely malformed request
+        // Using raw HTTP to send invalid JSON
+        const res = await request(app)
+          .post('/api/v1/auth/login')
+          .set('Content-Type', 'application/json')
+          .send('{ invalid json }');
+
+        // Should get some error response (either 400 for bad JSON or 500)
+        expect([400, 500]).toContain(res.status);
+        expect(res.body).toHaveProperty('error');
+      });
+
+      it('should handle errors with undefined message gracefully', async () => {
+        // Try a request that could cause an error without a message property
+        // Sending completely wrong content type/data
+        const res = await request(app)
+          .post('/api/v1/auth/login')
+          .set('Content-Type', 'text/plain')
+          .send('not json at all');
+
+        // Should handle gracefully with some error
+        expect([400, 415, 500]).toContain(res.status);
+      });
     });
 
     describe('requireAdmin Middleware', () => {
@@ -4056,6 +4188,226 @@ describe('API Endpoints', () => {
         const location = await locationCache.getBookingLocation('non-existent-booking');
 
         expect(location).toBeNull();
+      });
+    });
+
+    describe('Error Handler Direct Tests', () => {
+      it('should handle ZodError with field details', async () => {
+        const { errorHandler } = await import('../middleware/errorHandler.js');
+        const { z } = await import('zod');
+
+        // Create a ZodError by validating invalid data
+        const schema = z.object({
+          email: z.string().email(),
+          password: z.string().min(8),
+        });
+
+        let zodError: Error;
+        try {
+          schema.parse({ email: 'not-email', password: '123' });
+          throw new Error('Should have thrown');
+        } catch (e) {
+          zodError = e as Error;
+        }
+
+        // Mock response
+        const mockRes = {
+          status: jest.fn().mockReturnThis(),
+          json: jest.fn(),
+        };
+        const mockReq = {} as any;
+        const mockNext = jest.fn();
+
+        // Suppress console.error for this test
+        const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+
+        errorHandler(zodError, mockReq, mockRes as any, mockNext);
+
+        consoleSpy.mockRestore();
+
+        expect(mockRes.status).toHaveBeenCalledWith(400);
+        expect(mockRes.json).toHaveBeenCalledWith(
+          expect.objectContaining({
+            error: 'Validation Error',
+            details: expect.any(Array),
+          })
+        );
+      });
+
+      it('should handle P2002 with meta target fields', async () => {
+        const { errorHandler } = await import('../middleware/errorHandler.js');
+        const { Prisma } = await import('@prisma/client');
+
+        // Create a P2002 error with meta
+        const prismaError = new Prisma.PrismaClientKnownRequestError(
+          'Unique constraint failed',
+          { code: 'P2002', clientVersion: '5.0.0', meta: { target: ['email'] } }
+        );
+
+        const mockRes = {
+          status: jest.fn().mockReturnThis(),
+          json: jest.fn(),
+        };
+        const mockReq = {} as any;
+        const mockNext = jest.fn();
+
+        errorHandler(prismaError, mockReq, mockRes as any, mockNext);
+
+        expect(mockRes.status).toHaveBeenCalledWith(400);
+        expect(mockRes.json).toHaveBeenCalledWith(
+          expect.objectContaining({
+            error: 'Duplicate entry',
+            message: expect.stringContaining('email'),
+          })
+        );
+      });
+
+      it('should handle default Prisma error code', async () => {
+        const { errorHandler } = await import('../middleware/errorHandler.js');
+        const { Prisma } = await import('@prisma/client');
+
+        // Create a Prisma error with unknown code
+        const prismaError = new Prisma.PrismaClientKnownRequestError(
+          'Unknown error',
+          { code: 'P9999', clientVersion: '5.0.0' }
+        );
+
+        const mockRes = {
+          status: jest.fn().mockReturnThis(),
+          json: jest.fn(),
+        };
+        const mockReq = {} as any;
+        const mockNext = jest.fn();
+
+        errorHandler(prismaError, mockReq, mockRes as any, mockNext);
+
+        expect(mockRes.status).toHaveBeenCalledWith(400);
+        expect(mockRes.json).toHaveBeenCalledWith(
+          expect.objectContaining({
+            error: 'Database error',
+          })
+        );
+      });
+
+      it('should handle JsonWebTokenError', async () => {
+        const { errorHandler } = await import('../middleware/errorHandler.js');
+
+        // Create a JWT error
+        const jwtError = new Error('jwt malformed');
+        jwtError.name = 'JsonWebTokenError';
+
+        const mockRes = {
+          status: jest.fn().mockReturnThis(),
+          json: jest.fn(),
+        };
+        const mockReq = {} as any;
+        const mockNext = jest.fn();
+
+        errorHandler(jwtError, mockReq, mockRes as any, mockNext);
+
+        expect(mockRes.status).toHaveBeenCalledWith(401);
+        expect(mockRes.json).toHaveBeenCalledWith(
+          expect.objectContaining({
+            error: 'Invalid token',
+          })
+        );
+      });
+
+      it('should handle TokenExpiredError', async () => {
+        const { errorHandler } = await import('../middleware/errorHandler.js');
+
+        // Create a token expired error
+        const expiredError = new Error('jwt expired');
+        expiredError.name = 'TokenExpiredError';
+
+        const mockRes = {
+          status: jest.fn().mockReturnThis(),
+          json: jest.fn(),
+        };
+        const mockReq = {} as any;
+        const mockNext = jest.fn();
+
+        errorHandler(expiredError, mockReq, mockRes as any, mockNext);
+
+        expect(mockRes.status).toHaveBeenCalledWith(401);
+        expect(mockRes.json).toHaveBeenCalledWith(
+          expect.objectContaining({
+            error: 'Token expired',
+          })
+        );
+      });
+
+      it('should handle generic errors with message', async () => {
+        const { errorHandler } = await import('../middleware/errorHandler.js');
+
+        // Create a generic error
+        const genericError = new Error('Something went wrong');
+
+        const mockRes = {
+          status: jest.fn().mockReturnThis(),
+          json: jest.fn(),
+        };
+        const mockReq = {} as any;
+        const mockNext = jest.fn();
+
+        errorHandler(genericError, mockReq, mockRes as any, mockNext);
+
+        expect(mockRes.status).toHaveBeenCalledWith(500);
+        expect(mockRes.json).toHaveBeenCalledWith(
+          expect.objectContaining({
+            error: 'Something went wrong',
+          })
+        );
+      });
+
+      it('should handle errors without message', async () => {
+        const { errorHandler } = await import('../middleware/errorHandler.js');
+
+        // Create an error without message
+        const emptyError = new Error();
+
+        const mockRes = {
+          status: jest.fn().mockReturnThis(),
+          json: jest.fn(),
+        };
+        const mockReq = {} as any;
+        const mockNext = jest.fn();
+
+        errorHandler(emptyError, mockReq, mockRes as any, mockNext);
+
+        expect(mockRes.status).toHaveBeenCalledWith(500);
+        expect(mockRes.json).toHaveBeenCalledWith(
+          expect.objectContaining({
+            error: 'Internal Server Error',
+          })
+        );
+      });
+
+      it('should include stack trace in development mode', async () => {
+        const { errorHandler } = await import('../middleware/errorHandler.js');
+
+        const originalEnv = process.env.NODE_ENV;
+        process.env.NODE_ENV = 'development';
+
+        const error = new Error('Test error');
+
+        const mockRes = {
+          status: jest.fn().mockReturnThis(),
+          json: jest.fn(),
+        };
+        const mockReq = {} as any;
+        const mockNext = jest.fn();
+
+        errorHandler(error, mockReq, mockRes as any, mockNext);
+
+        expect(mockRes.json).toHaveBeenCalledWith(
+          expect.objectContaining({
+            stack: expect.any(String),
+          })
+        );
+
+        // Restore original env
+        process.env.NODE_ENV = originalEnv;
       });
     });
   });
