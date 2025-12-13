@@ -23,7 +23,8 @@
       "Bash(ADMIN_TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjbWo0M3N4OHIwMDA1dXZuYzVzNDNqZ2FpIiwiZW1haWwiOiJhZG1pbkBjYWxsbXNnLmNvbSIsInJvbGUiOiJBRE1JTiIsImlhdCI6MTc2NTYxOTI2MCwiZXhwIjoxNzY1NjIwMTYwfQ._N2MTmaBNI_x5Wq4dVm3JjW18g14BnEEZuV_BJ215zA\")",
       "Bash(__NEW_LINE__ echo \"=== 1. Dashboard ===\")",
       "Bash(git init:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(npm run build:*)"
     ]
   }
 }

@@ -3,7 +3,7 @@
 // ============================================================================
 
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import { prisma } from '../config/database.js';
 import { redis } from '../config/redis.js';
@@ -27,8 +27,8 @@ interface TokenPayload {
 class AuthService {
   private readonly JWT_SECRET = process.env.JWT_SECRET || 'secret';
   private readonly JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'refresh-secret';
-  private readonly JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '15m';
-  private readonly JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
+  private readonly JWT_EXPIRES_IN = 900; // 15 minutes in seconds
+  private readonly JWT_REFRESH_EXPIRES_IN = 604800; // 7 days in seconds
 
   // Generate tokens
   private generateTokens(user: { id: string; email: string; role: string }) {
@@ -38,13 +38,11 @@ class AuthService {
       role: user.role,
     };
 
-    const accessToken = jwt.sign(payload, this.JWT_SECRET, {
-      expiresIn: this.JWT_EXPIRES_IN,
-    });
+    const accessOptions: SignOptions = { expiresIn: this.JWT_EXPIRES_IN };
+    const refreshOptions: SignOptions = { expiresIn: this.JWT_REFRESH_EXPIRES_IN };
 
-    const refreshToken = jwt.sign(payload, this.JWT_REFRESH_SECRET, {
-      expiresIn: this.JWT_REFRESH_EXPIRES_IN,
-    });
+    const accessToken = jwt.sign(payload, this.JWT_SECRET, accessOptions);
+    const refreshToken = jwt.sign(payload, this.JWT_REFRESH_SECRET, refreshOptions);
 
     return { accessToken, refreshToken };
   }
