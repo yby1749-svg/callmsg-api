@@ -18,14 +18,176 @@ describe('API Endpoints', () => {
     });
   });
 
-  describe('GET /api/v1/services', () => {
-    it('should return list of services', async () => {
-      const res = await request(app).get('/api/v1/services');
+  // ============================================================================
+  // SERVICE ROUTES
+  // ============================================================================
 
-      expect(res.status).toBe(200);
-      expect(res.body).toHaveProperty('success', true);
-      expect(res.body).toHaveProperty('data');
-      expect(Array.isArray(res.body.data)).toBe(true);
+  describe('Service Routes', () => {
+    describe('GET /api/v1/services', () => {
+      it('should return list of services', async () => {
+        const res = await request(app).get('/api/v1/services');
+
+        expect(res.status).toBe(200);
+        expect(res.body).toHaveProperty('success', true);
+        expect(res.body).toHaveProperty('data');
+        expect(Array.isArray(res.body.data)).toBe(true);
+      });
+
+      it('should return services with expected properties', async () => {
+        const res = await request(app).get('/api/v1/services');
+
+        expect(res.status).toBe(200);
+        if (res.body.data.length > 0) {
+          const service = res.body.data[0];
+          expect(service).toHaveProperty('id');
+          expect(service).toHaveProperty('name');
+          expect(service).toHaveProperty('category');
+          expect(service).toHaveProperty('baseDuration');
+          expect(service).toHaveProperty('basePrice');
+        }
+      });
+
+      it('should filter services by category', async () => {
+        const res = await request(app)
+          .get('/api/v1/services')
+          .query({ category: 'THAI_MASSAGE' });
+
+        expect(res.status).toBe(200);
+        expect(res.body).toHaveProperty('success', true);
+        // All returned services should be THAI_MASSAGE
+        res.body.data.forEach((service: { category: string }) => {
+          expect(service.category).toBe('THAI_MASSAGE');
+        });
+      });
+
+      it('should reject invalid category filter', async () => {
+        const res = await request(app)
+          .get('/api/v1/services')
+          .query({ category: 'NON_EXISTENT_CATEGORY' });
+
+        // Invalid enum value causes a Prisma validation error
+        expect(res.status).toBe(400);
+      });
+    });
+
+    describe('GET /api/v1/services/:serviceId', () => {
+      it('should return service details', async () => {
+        const res = await request(app)
+          .get('/api/v1/services/svc-thai');
+
+        expect(res.status).toBe(200);
+        expect(res.body).toHaveProperty('success', true);
+        expect(res.body.data).toHaveProperty('id', 'svc-thai');
+        expect(res.body.data).toHaveProperty('name', 'Thai Massage');
+        expect(res.body.data).toHaveProperty('category', 'THAI_MASSAGE');
+      });
+
+      it('should return 404 for non-existent service', async () => {
+        const res = await request(app)
+          .get('/api/v1/services/non-existent-service');
+
+        expect(res.status).toBe(404);
+        expect(res.body.error).toContain('not found');
+      });
+
+      it('should include Korean name if available', async () => {
+        const res = await request(app)
+          .get('/api/v1/services/svc-thai');
+
+        expect(res.status).toBe(200);
+        expect(res.body.data).toHaveProperty('nameKo');
+      });
+    });
+
+    describe('GET /api/v1/services/areas', () => {
+      it('should return list of service areas', async () => {
+        const res = await request(app)
+          .get('/api/v1/services/areas');
+
+        expect(res.status).toBe(200);
+        expect(res.body).toHaveProperty('success', true);
+        expect(res.body).toHaveProperty('data');
+        expect(Array.isArray(res.body.data)).toBe(true);
+      });
+
+      it('should return areas with expected properties', async () => {
+        const res = await request(app)
+          .get('/api/v1/services/areas');
+
+        expect(res.status).toBe(200);
+        if (res.body.data.length > 0) {
+          const area = res.body.data[0];
+          expect(area).toHaveProperty('name');
+          expect(area).toHaveProperty('displayName');
+          expect(area).toHaveProperty('centerLat');
+          expect(area).toHaveProperty('centerLng');
+        }
+      });
+    });
+
+    describe('POST /api/v1/services/promotions/validate', () => {
+      it('should validate a valid promo code', async () => {
+        const res = await request(app)
+          .post('/api/v1/services/promotions/validate')
+          .send({ code: 'WELCOME20', amount: 1000 });
+
+        expect(res.status).toBe(200);
+        expect(res.body).toHaveProperty('success', true);
+        expect(res.body.data).toHaveProperty('valid', true);
+        expect(res.body.data).toHaveProperty('discount');
+        expect(res.body.data.discount).toBeGreaterThan(0);
+      });
+
+      it('should return invalid for non-existent promo code', async () => {
+        const res = await request(app)
+          .post('/api/v1/services/promotions/validate')
+          .send({ code: 'INVALID_CODE', amount: 1000 });
+
+        expect(res.status).toBe(200);
+        expect(res.body.data).toHaveProperty('valid', false);
+        expect(res.body.data.message).toContain('Invalid');
+      });
+
+      it('should apply percentage discount correctly', async () => {
+        const amount = 1000;
+        const res = await request(app)
+          .post('/api/v1/services/promotions/validate')
+          .send({ code: 'WELCOME20', amount });
+
+        expect(res.status).toBe(200);
+        // WELCOME20 is 20% off with max 500
+        const expectedDiscount = Math.min(amount * 0.20, 500);
+        expect(res.body.data.discount).toBe(expectedDiscount);
+      });
+
+      it('should apply fixed discount correctly', async () => {
+        const res = await request(app)
+          .post('/api/v1/services/promotions/validate')
+          .send({ code: 'FLAT100', amount: 1500 });
+
+        expect(res.status).toBe(200);
+        expect(res.body.data).toHaveProperty('valid', true);
+        expect(res.body.data.discount).toBe(100);
+      });
+
+      it('should reject if order amount below minimum', async () => {
+        const res = await request(app)
+          .post('/api/v1/services/promotions/validate')
+          .send({ code: 'WELCOME20', amount: 500 }); // Min is 800
+
+        expect(res.status).toBe(200);
+        expect(res.body.data).toHaveProperty('valid', false);
+        expect(res.body.data.message).toContain('Minimum');
+      });
+
+      it('should cap discount at maxDiscount', async () => {
+        const res = await request(app)
+          .post('/api/v1/services/promotions/validate')
+          .send({ code: 'WELCOME20', amount: 5000 }); // 20% of 5000 = 1000, but max is 500
+
+        expect(res.status).toBe(200);
+        expect(res.body.data.discount).toBeLessThanOrEqual(500);
+      });
     });
   });
 

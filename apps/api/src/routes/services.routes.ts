@@ -38,26 +38,6 @@ router.get('/', serviceController.listServices);
 
 /**
  * @swagger
- * /services/{serviceId}:
- *   get:
- *     summary: Get service details
- *     tags: [Services]
- *     parameters:
- *       - in: path
- *         name: serviceId
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Service details
- *       404:
- *         description: Service not found
- */
-router.get('/:serviceId', serviceController.getServiceDetail);
-
-/**
- * @swagger
  * /services/areas:
  *   get:
  *     summary: Get available service areas
@@ -91,5 +71,25 @@ router.get('/areas', serviceController.getServiceAreas);
  *         description: Invalid promo code
  */
 router.post('/promotions/validate', serviceController.validatePromoCode);
+
+/**
+ * @swagger
+ * /services/{serviceId}:
+ *   get:
+ *     summary: Get service details
+ *     tags: [Services]
+ *     parameters:
+ *       - in: path
+ *         name: serviceId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Service details
+ *       404:
+ *         description: Service not found
+ */
+router.get('/:serviceId', serviceController.getServiceDetail);
 
 export default router;
