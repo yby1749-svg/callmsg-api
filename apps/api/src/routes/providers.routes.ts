@@ -12,26 +12,190 @@ const router = Router();
 // PUBLIC ROUTES (Customer browsing providers)
 // ============================================================================
 
-// List providers (with filters)
+/**
+ * @swagger
+ * /providers:
+ *   get:
+ *     summary: List providers
+ *     tags: [Providers]
+ *     parameters:
+ *       - in: query
+ *         name: serviceId
+ *         schema:
+ *           type: string
+ *         description: Filter by service
+ *       - in: query
+ *         name: latitude
+ *         schema:
+ *           type: number
+ *         description: User latitude for distance calculation
+ *       - in: query
+ *         name: longitude
+ *         schema:
+ *           type: number
+ *         description: User longitude for distance calculation
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *     responses:
+ *       200:
+ *         description: List of providers
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Provider'
+ */
 router.get('/', optionalAuth, providerController.listProviders);
 
-// Get provider detail
+/**
+ * @swagger
+ * /providers/{providerId}:
+ *   get:
+ *     summary: Get provider details
+ *     tags: [Providers]
+ *     parameters:
+ *       - in: path
+ *         name: providerId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Provider details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/Provider'
+ *       404:
+ *         description: Provider not found
+ */
 router.get('/:providerId', optionalAuth, providerController.getProviderDetail);
 
-// Get provider reviews
+/**
+ * @swagger
+ * /providers/{providerId}/reviews:
+ *   get:
+ *     summary: Get provider reviews
+ *     tags: [Providers]
+ *     parameters:
+ *       - in: path
+ *         name: providerId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *     responses:
+ *       200:
+ *         description: List of reviews
+ */
 router.get('/:providerId/reviews', providerController.getProviderReviews);
 
-// Get provider availability for a date
+/**
+ * @swagger
+ * /providers/{providerId}/availability:
+ *   get:
+ *     summary: Get provider availability for a date
+ *     tags: [Providers]
+ *     parameters:
+ *       - in: path
+ *         name: providerId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: date
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: date
+ *     responses:
+ *       200:
+ *         description: Available time slots
+ */
 router.get('/:providerId/availability', providerController.getProviderAvailability);
 
 // ============================================================================
 // PROVIDER REGISTRATION & MANAGEMENT (Requires auth)
 // ============================================================================
 
-// Register as provider
+/**
+ * @swagger
+ * /providers/register:
+ *   post:
+ *     summary: Register as a provider
+ *     tags: [Providers]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [displayName]
+ *             properties:
+ *               displayName:
+ *                 type: string
+ *               bio:
+ *                 type: string
+ *               yearsOfExperience:
+ *                 type: integer
+ *     responses:
+ *       201:
+ *         description: Provider registered successfully
+ *       400:
+ *         description: Already registered as provider
+ */
 router.post('/register', authenticate, providerController.registerAsProvider);
 
-// Provider profile management (requires provider role)
+/**
+ * @swagger
+ * /providers/me/profile:
+ *   get:
+ *     summary: Get my provider profile
+ *     tags: [Providers]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Provider profile
+ *   patch:
+ *     summary: Update my provider profile
+ *     tags: [Providers]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               displayName:
+ *                 type: string
+ *               bio:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Profile updated
+ */
 router.get('/me/profile', authenticate, requireProvider, providerController.getMyProfile);
 router.patch('/me/profile', authenticate, requireProvider, providerController.updateMyProfile);
 
