@@ -1,13 +1,14 @@
 name: Deploy
 
-# Auto-deploy disabled until AWS is configured
-# To enable: uncomment the push trigger below
+# Auto-deploy enabled - deploys to production on push to main
+# Requires AWS secrets: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
 on:
-  # push:
-  #   branches: [main]
-  #   paths-ignore:
-  #     - '*.md'
-  #     - 'docs/**'
+  push:
+    branches: [main]
+    paths-ignore:
+      - '*.md'
+      - 'docs/**'
+      - '.github/workflows/ci.yml'
   workflow_dispatch:
     inputs:
       environment:
