@@ -1,5 +1,6 @@
 import {create} from 'zustand';
 import {authApi, setTokens, clearTokens, providersApi} from '@api';
+import {socketService} from '../services/socket';
 import type {Provider, User} from '@types';
 
 interface AuthState {
@@ -47,6 +48,9 @@ export const useAuthStore = create<AuthState>((set, _get) => ({
         provider: profileResponse.data.data,
         isLoading: false,
       });
+
+      // Connect socket with token directly (avoids race condition)
+      socketService.connect(accessToken);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Login failed';
       set({error: message, isLoading: false});
@@ -77,6 +81,9 @@ export const useAuthStore = create<AuthState>((set, _get) => ({
         provider,
         isLoading: false,
       });
+
+      // Connect socket with token directly (avoids race condition)
+      socketService.connect(accessToken);
     } catch (error: unknown) {
       const message =
         error instanceof Error ? error.message : 'Registration failed';
@@ -86,6 +93,7 @@ export const useAuthStore = create<AuthState>((set, _get) => ({
   },
 
   logout: async () => {
+    socketService.disconnect();
     await clearTokens();
     set({
       isAuthenticated: false,
@@ -104,6 +112,9 @@ export const useAuthStore = create<AuthState>((set, _get) => ({
         isAuthenticated: true,
         isLoading: false,
       });
+
+      // Connect socket (tokens already in storage from previous session)
+      socketService.connect();
     } catch {
       set({isLoading: false});
     }

@@ -6,22 +6,46 @@ import {useNotificationStore} from '@store/notificationStore';
 import type {Booking, Notification} from '@types';
 
 let socket: Socket | null = null;
+let connectionRetries = 0;
+const MAX_CONNECTION_RETRIES = 3;
+const RETRY_DELAY = 1000;
 
 export const socketService = {
-  connect: async () => {
+  connect: async (providedToken?: string) => {
     if (socket?.connected) {
       return;
     }
 
-    const tokens = await getTokens();
-    if (!tokens?.accessToken) {
-      console.warn('Cannot connect to socket: no access token');
-      return;
+    let accessToken = providedToken;
+
+    // If no token provided, get from storage with retry
+    if (!accessToken) {
+      const tokens = await getTokens();
+      accessToken = tokens?.accessToken;
+
+      // Retry if tokens not available yet (race condition on first auth)
+      if (!accessToken && connectionRetries < MAX_CONNECTION_RETRIES) {
+        connectionRetries++;
+        console.log(
+          `Socket: Tokens not ready, retrying in ${RETRY_DELAY}ms (${connectionRetries}/${MAX_CONNECTION_RETRIES})`,
+        );
+        setTimeout(() => socketService.connect(), RETRY_DELAY);
+        return;
+      }
+
+      if (!accessToken) {
+        console.warn('Cannot connect to socket: no access token after retries');
+        connectionRetries = 0;
+        return;
+      }
     }
+
+    // Reset retry counter on successful token retrieval
+    connectionRetries = 0;
 
     socket = io(SOCKET_URL, {
       auth: {
-        token: tokens.accessToken,
+        token: accessToken,
       },
       transports: ['websocket'],
       reconnection: true,

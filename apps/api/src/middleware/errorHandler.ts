@@ -34,7 +34,7 @@ export const errorHandler = (
   res: Response,
   _next: NextFunction
 ): void => {
-  console.error('Error:', err);
+  console.error('Error:', err.message || String(err));
 
   const response: ErrorResponse = {
     error: 'Internal Server Error',
