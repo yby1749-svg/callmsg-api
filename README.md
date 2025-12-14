@@ -1,6 +1,9 @@
 # Call MSG - On-Demand Massage Platform
 
 [![CI](https://github.com/yby1749-svg/callmsg-api/actions/workflows/ci.yml/badge.svg)](https://github.com/yby1749-svg/callmsg-api/actions/workflows/ci.yml)
+[![Terraform](https://img.shields.io/badge/Terraform-validated-844FBA?logo=terraform)](https://github.com/yby1749-svg/callmsg-api/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/badge/Coverage-94.54%25-brightgreen)](https://github.com/yby1749-svg/callmsg-api)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 > 필리핀 메트로 마닐라 대상 온디맨드 출장 마사지 플랫폼
 
