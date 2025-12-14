@@ -1,0 +1,48 @@
+import {create} from 'zustand';
+import type {Notification} from '@types';
+
+interface NotificationState {
+  notifications: Notification[];
+  unreadCount: number;
+  fcmToken: string | null;
+  isLoading: boolean;
+
+  setFcmToken: (token: string) => void;
+  addNotification: (notification: Notification) => void;
+  markAsRead: (notificationId: string) => void;
+  markAllAsRead: () => void;
+  clearNotifications: () => void;
+}
+
+export const useNotificationStore = create<NotificationState>((set, _get) => ({
+  notifications: [],
+  unreadCount: 0,
+  fcmToken: null,
+  isLoading: false,
+
+  setFcmToken: (token: string) => set({fcmToken: token}),
+
+  addNotification: (notification: Notification) =>
+    set(state => ({
+      notifications: [notification, ...state.notifications],
+      unreadCount: notification.isRead
+        ? state.unreadCount
+        : state.unreadCount + 1,
+    })),
+
+  markAsRead: (notificationId: string) =>
+    set(state => ({
+      notifications: state.notifications.map(n =>
+        n.id === notificationId ? {...n, isRead: true} : n,
+      ),
+      unreadCount: Math.max(0, state.unreadCount - 1),
+    })),
+
+  markAllAsRead: () =>
+    set(state => ({
+      notifications: state.notifications.map(n => ({...n, isRead: true})),
+      unreadCount: 0,
+    })),
+
+  clearNotifications: () => set({notifications: [], unreadCount: 0}),
+}));

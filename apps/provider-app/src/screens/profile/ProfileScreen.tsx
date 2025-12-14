@@ -1,0 +1,245 @@
+import React from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+} from 'react-native';
+import {useNavigation} from '@react-navigation/native';
+import {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import Icon from 'react-native-vector-icons/Ionicons';
+
+import {Card} from '@components';
+import {useAuthStore} from '@store';
+import {colors, typography, spacing, borderRadius} from '@config/theme';
+import type {ProfileStackParamList} from '@types';
+
+type NavigationProp = NativeStackNavigationProp<
+  ProfileStackParamList,
+  'Profile'
+>;
+
+export function ProfileScreen() {
+  const navigation = useNavigation<NavigationProp>();
+  const {provider, logout} = useAuthStore();
+
+  const menuItems = [
+    {
+      icon: 'briefcase-outline',
+      label: 'My Services',
+      screen: 'Services' as const,
+    },
+    {
+      icon: 'settings-outline',
+      label: 'Settings',
+      screen: 'Settings' as const,
+    },
+  ];
+
+  const handleLogout = () => {
+    logout();
+  };
+
+  return (
+    <ScrollView style={styles.container}>
+      {/* Profile Header */}
+      <View style={styles.header}>
+        <View style={styles.avatar}>
+          <Icon name="person" size={48} color={colors.textLight} />
+        </View>
+        <Text style={styles.name}>{provider?.displayName}</Text>
+        <View style={styles.ratingContainer}>
+          <Icon name="star" size={18} color={colors.warning} />
+          <Text style={styles.rating}>
+            {provider?.rating?.toFixed(1) || '0.0'}
+          </Text>
+          <Text style={styles.reviews}>
+            ({provider?.totalReviews || 0} reviews)
+          </Text>
+        </View>
+        {provider?.bio && <Text style={styles.bio}>{provider.bio}</Text>}
+
+        {/* Status Badge */}
+        <View
+          style={[
+            styles.statusBadge,
+            provider?.isOnline ? styles.onlineBadge : styles.offlineBadge,
+          ]}>
+          <View
+            style={[
+              styles.statusDot,
+              provider?.isOnline ? styles.onlineDot : styles.offlineDot,
+            ]}
+          />
+          <Text style={styles.statusText}>
+            {provider?.isOnline ? 'Online' : 'Offline'}
+          </Text>
+        </View>
+      </View>
+
+      {/* Stats */}
+      <View style={styles.statsContainer}>
+        <View style={styles.statItem}>
+          <Text style={styles.statValue}>{provider?.totalReviews || 0}</Text>
+          <Text style={styles.statLabel}>Reviews</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statItem}>
+          <Text style={styles.statValue}>
+            {provider?.rating?.toFixed(1) || '0.0'}
+          </Text>
+          <Text style={styles.statLabel}>Rating</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statItem}>
+          <Text style={styles.statValue}>
+            {provider?.services?.length || 0}
+          </Text>
+          <Text style={styles.statLabel}>Services</Text>
+        </View>
+      </View>
+
+      {/* Menu Items */}
+      <View style={styles.menuContainer}>
+        {menuItems.map(item => (
+          <TouchableOpacity
+            key={item.label}
+            onPress={() => navigation.navigate(item.screen)}>
+            <Card style={styles.menuItem}>
+              <Icon name={item.icon} size={24} color={colors.primary} />
+              <Text style={styles.menuLabel}>{item.label}</Text>
+              <Icon name="chevron-forward" size={20} color={colors.textLight} />
+            </Card>
+          </TouchableOpacity>
+        ))}
+
+        {/* Logout */}
+        <TouchableOpacity onPress={handleLogout}>
+          <Card style={styles.menuItem}>
+            <Icon name="log-out-outline" size={24} color={colors.error} />
+            <Text style={[styles.menuLabel, styles.logoutLabel]}>Logout</Text>
+          </Card>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  header: {
+    alignItems: 'center',
+    padding: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.divider,
+  },
+  avatar: {
+    width: 96,
+    height: 96,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  name: {
+    ...typography.h2,
+    color: colors.text,
+  },
+  ratingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing.sm,
+    gap: spacing.xs,
+  },
+  rating: {
+    ...typography.body,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  reviews: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+  },
+  bio: {
+    ...typography.body,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.lg,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
+    marginTop: spacing.md,
+    gap: spacing.sm,
+  },
+  onlineBadge: {
+    backgroundColor: colors.success + '20',
+  },
+  offlineBadge: {
+    backgroundColor: colors.textLight + '20',
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  onlineDot: {
+    backgroundColor: colors.success,
+  },
+  offlineDot: {
+    backgroundColor: colors.textLight,
+  },
+  statusText: {
+    ...typography.bodySmall,
+    fontWeight: '500',
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    padding: spacing.lg,
+    backgroundColor: colors.card,
+    marginTop: spacing.md,
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statValue: {
+    ...typography.h2,
+    color: colors.primary,
+  },
+  statLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+  },
+  statDivider: {
+    width: 1,
+    backgroundColor: colors.divider,
+  },
+  menuContainer: {
+    padding: spacing.lg,
+    gap: spacing.sm,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  menuLabel: {
+    ...typography.body,
+    color: colors.text,
+    flex: 1,
+  },
+  logoutLabel: {
+    color: colors.error,
+  },
+});
