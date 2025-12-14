@@ -30,13 +30,13 @@ export const authApi = {
   login: (data: LoginRequest) =>
     apiClient.post<{data: AuthResponse}>('/auth/login', {
       ...data,
-      role: 'provider',
+      role: 'PROVIDER',
     }),
 
   register: (data: RegisterRequest) =>
     apiClient.post<{data: AuthResponse}>('/auth/register', {
       ...data,
-      role: 'provider',
+      role: 'PROVIDER',
     }),
 
   refreshToken: (refreshToken: string) =>
