@@ -1,0 +1,196 @@
+export interface User {
+  id: string;
+  email: string;
+  phone?: string;
+  phoneVerified: boolean;
+  emailVerified: boolean;
+  firstName: string;
+  lastName: string;
+  avatarUrl?: string;
+  gender?: 'MALE' | 'FEMALE' | 'OTHER';
+  dateOfBirth?: string;
+  role: 'CUSTOMER' | 'PROVIDER' | 'ADMIN';
+  status: 'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED';
+  emergencyName?: string;
+  emergencyPhone?: string;
+  emergencyRelation?: string;
+  createdAt: string;
+}
+
+export interface AuthResponse {
+  accessToken: string;
+  refreshToken: string;
+  user: User;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface RegisterRequest {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+}
+
+export interface Provider {
+  id: string;
+  userId: string;
+  displayName: string;
+  bio?: string;
+  rating: number;
+  totalReviews: number;
+  completedBookings: number;
+  user: {
+    firstName: string;
+    lastName: string;
+    avatarUrl?: string;
+    gender?: string;
+  };
+}
+
+export interface ProviderDetail extends Provider {
+  services: ProviderService[];
+  serviceAreas: string[];
+}
+
+export interface Service {
+  id: string;
+  name: string;
+  description?: string;
+  category: string;
+  basePrice60: number;
+  basePrice90: number;
+  basePrice120: number;
+  iconUrl?: string;
+  isActive: boolean;
+}
+
+export interface ProviderService {
+  id: string;
+  providerId: string;
+  serviceId: string;
+  price60: number;
+  price90?: number;
+  price120?: number;
+  isActive: boolean;
+  service: Service;
+}
+
+export interface Address {
+  id: string;
+  userId: string;
+  label: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  notes?: string;
+  isDefault: boolean;
+  createdAt: string;
+}
+
+export interface Booking {
+  id: string;
+  customerId: string;
+  providerId?: string;
+  serviceId: string;
+  status: BookingStatus;
+  scheduledDate: string;
+  scheduledTime: string;
+  duration: 60 | 90 | 120;
+  address: string;
+  latitude: number;
+  longitude: number;
+  notes?: string;
+  price: number;
+  serviceFee: number;
+  totalAmount: number;
+  paymentStatus: PaymentStatus;
+  createdAt: string;
+  confirmedAt?: string;
+  completedAt?: string;
+  cancelledAt?: string;
+  cancelReason?: string;
+  provider?: Provider;
+  service: Service;
+  payment?: Payment;
+}
+
+export interface BookingRequest {
+  providerId: string;
+  serviceId: string;
+  scheduledDate: string;
+  scheduledTime: string;
+  duration: 60 | 90 | 120;
+  address: string;
+  latitude: number;
+  longitude: number;
+  notes?: string;
+}
+
+export type BookingStatus =
+  | 'PENDING'
+  | 'CONFIRMED'
+  | 'PROVIDER_ASSIGNED'
+  | 'PROVIDER_EN_ROUTE'
+  | 'PROVIDER_ARRIVED'
+  | 'IN_PROGRESS'
+  | 'COMPLETED'
+  | 'CANCELLED';
+
+export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
+
+export interface Payment {
+  id: string;
+  bookingId: string;
+  amount: number;
+  method: 'CARD' | 'GCASH' | 'PAYMAYA' | 'CASH';
+  status: PaymentStatus;
+  paymongoIntentId?: string;
+  paidAt?: string;
+}
+
+export interface PaymentIntent {
+  id: string;
+  clientKey?: string;
+  status: string;
+  checkoutUrl?: string;
+}
+
+export interface Review {
+  id: string;
+  bookingId: string;
+  authorId: string;
+  targetId: string;
+  rating: number;
+  comment?: string;
+  createdAt: string;
+  author: {
+    firstName: string;
+    avatarUrl?: string;
+  };
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export interface Notification {
+  id: string;
+  userId: string;
+  type: string;
+  title: string;
+  body: string;
+  data?: Record<string, unknown>;
+  read: boolean;
+  createdAt: string;
+}
