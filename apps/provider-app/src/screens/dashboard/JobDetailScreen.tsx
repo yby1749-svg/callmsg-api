@@ -8,7 +8,8 @@ import {
   Linking,
   Alert,
 } from 'react-native';
-import {useRoute, RouteProp} from '@react-navigation/native';
+import {useRoute, useNavigation, RouteProp} from '@react-navigation/native';
+import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {useQuery} from '@tanstack/react-query';
 import Icon from 'react-native-vector-icons/Ionicons';
 import {format} from 'date-fns';
@@ -21,6 +22,7 @@ import {colors, typography, spacing, borderRadius} from '@config/theme';
 import type {DashboardStackParamList, BookingStatus} from '@types';
 
 type RouteProps = RouteProp<DashboardStackParamList, 'JobDetail'>;
+type NavigationProp = NativeStackNavigationProp<DashboardStackParamList, 'JobDetail'>;
 
 const STATUS_FLOW: BookingStatus[] = [
   'CONFIRMED',
@@ -32,6 +34,7 @@ const STATUS_FLOW: BookingStatus[] = [
 
 export function JobDetailScreen() {
   const route = useRoute<RouteProps>();
+  const navigation = useNavigation<NavigationProp>();
   const {bookingId} = route.params;
   const {updateJobStatus, isLoading: isUpdating} = useJobStore();
   const [currentStatusIndex, setCurrentStatusIndex] = useState(0);
@@ -110,6 +113,28 @@ export function JobDetailScreen() {
           },
         ],
       );
+    } else if (nextStatus === 'PROVIDER_EN_ROUTE') {
+      // Update status and navigate to map
+      try {
+        await updateJobStatus(bookingId, nextStatus);
+        refetch();
+        // Navigate to NavigationScreen
+        if (booking?.address) {
+          navigation.navigate('Navigation', {
+            bookingId,
+            destination: {
+              lat: booking.address.latitude,
+              lng: booking.address.longitude,
+            },
+          });
+        }
+      } catch {
+        Toast.show({
+          type: 'error',
+          text1: 'Error',
+          text2: 'Failed to update status',
+        });
+      }
     } else {
       try {
         await updateJobStatus(bookingId, nextStatus);
@@ -128,9 +153,14 @@ export function JobDetailScreen() {
     if (!booking?.address) {
       return;
     }
-    const {latitude, longitude} = booking.address;
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
-    Linking.openURL(url);
+    // Navigate to in-app navigation screen
+    navigation.navigate('Navigation', {
+      bookingId,
+      destination: {
+        lat: booking.address.latitude,
+        lng: booking.address.longitude,
+      },
+    });
   };
 
   const callCustomer = () => {

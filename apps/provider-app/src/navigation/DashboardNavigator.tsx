@@ -2,6 +2,7 @@ import React from 'react';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {JobDashboardScreen} from '@screens/dashboard/JobDashboardScreen';
 import {JobDetailScreen} from '@screens/dashboard/JobDetailScreen';
+import {NavigationScreen} from '@screens/dashboard/NavigationScreen';
 import type {DashboardStackParamList} from '@types';
 import {colors} from '@config/theme';
 
@@ -26,6 +27,11 @@ export function DashboardNavigator() {
         name="JobDetail"
         component={JobDetailScreen}
         options={{title: 'Job Details'}}
+      />
+      <Stack.Screen
+        name="Navigation"
+        component={NavigationScreen}
+        options={{title: 'Navigate to Customer'}}
       />
     </Stack.Navigator>
   );
