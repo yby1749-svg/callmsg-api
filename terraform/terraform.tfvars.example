@@ -1,0 +1,35 @@
+# Terraform Variables Example
+# Copy this file to terraform.tfvars and fill in the values
+
+# AWS Configuration
+aws_region  = "ap-southeast-1"
+environment = "prod"
+
+# VPC Configuration
+vpc_cidr           = "10.0.0.0/16"
+availability_zones = ["ap-southeast-1a", "ap-southeast-1b"]
+
+# RDS Configuration
+db_instance_class = "db.t3.micro"  # Use db.t3.small for production
+db_name           = "callmsg"
+db_username       = "callmsg"
+db_password       = "CHANGE_ME_TO_A_STRONG_PASSWORD"
+
+# ElastiCache Configuration
+redis_node_type = "cache.t3.micro"
+
+# ECS Configuration
+ecs_cpu           = 256   # 0.25 vCPU
+ecs_memory        = 512   # 512 MB
+ecs_desired_count = 1     # Number of tasks
+container_port    = 3000
+
+# Application Secrets (CHANGE THESE!)
+jwt_secret         = "your-super-secret-jwt-key-change-me-in-production"
+jwt_refresh_secret = "your-super-secret-refresh-key-change-me-in-production"
+
+# Domain Configuration (Optional)
+# Uncomment and fill in if you have a domain
+# domain_name       = "api.callmsg.com"
+# create_dns_record = true
+# route53_zone_id   = "Z1234567890ABC"
