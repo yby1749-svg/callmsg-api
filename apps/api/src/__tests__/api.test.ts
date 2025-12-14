@@ -310,8 +310,11 @@ describe('API Endpoints', () => {
     });
 
     afterAll(async () => {
-      // Clean up test bookings
+      // Clean up test bookings (delete payments first due to foreign key)
       if (createdBookingId) {
+        await prisma.payment.deleteMany({
+          where: { bookingId: createdBookingId },
+        });
         await prisma.booking.deleteMany({
           where: { id: createdBookingId },
         });
@@ -549,6 +552,7 @@ describe('API Endpoints', () => {
 
         // Clean up
         await prisma.locationLog.deleteMany({ where: { bookingId } });
+        await prisma.payment.deleteMany({ where: { bookingId } });
         await prisma.booking.delete({ where: { id: bookingId } });
       });
     });
@@ -586,6 +590,7 @@ describe('API Endpoints', () => {
         expect(res.body.data.cancelReason).toBe('Changed my mind');
 
         // Clean up
+        await prisma.payment.deleteMany({ where: { bookingId } });
         await prisma.booking.delete({ where: { id: bookingId } });
       });
 
@@ -633,6 +638,7 @@ describe('API Endpoints', () => {
         expect(res.body.data.status).toBe('REJECTED');
 
         // Clean up
+        await prisma.payment.deleteMany({ where: { bookingId } });
         await prisma.booking.delete({ where: { id: bookingId } });
       });
 
@@ -670,6 +676,7 @@ describe('API Endpoints', () => {
         expect(res.status).toBe(400);
 
         // Clean up
+        await prisma.payment.deleteMany({ where: { bookingId } });
         await prisma.booking.delete({ where: { id: bookingId } });
       });
     });
@@ -718,6 +725,7 @@ describe('API Endpoints', () => {
 
         // Clean up
         await prisma.locationLog.deleteMany({ where: { bookingId } });
+        await prisma.payment.deleteMany({ where: { bookingId } });
         await prisma.booking.delete({ where: { id: bookingId } });
       });
 
@@ -872,11 +880,12 @@ describe('API Endpoints', () => {
     });
 
     afterAll(async () => {
-      // Clean up
+      // Clean up (delete in correct order for foreign keys)
       if (createdReviewId) {
         await prisma.review.deleteMany({ where: { id: createdReviewId } });
       }
       if (completedBookingId) {
+        await prisma.payment.deleteMany({ where: { bookingId: completedBookingId } });
         await prisma.booking.deleteMany({ where: { id: completedBookingId } });
       }
     });
@@ -994,6 +1003,7 @@ describe('API Endpoints', () => {
         expect(res.body.error).toContain('completed');
 
         // Clean up
+        await prisma.payment.deleteMany({ where: { bookingId: pendingBookingId } });
         await prisma.booking.delete({ where: { id: pendingBookingId } });
       });
 
@@ -1052,8 +1062,9 @@ describe('API Endpoints', () => {
         expect(res.status).toBe(201);
         expect(res.body.data.rating).toBe(4);
 
-        // Clean up
+        // Clean up (delete in correct order for foreign keys)
         await prisma.review.deleteMany({ where: { bookingId } });
+        await prisma.payment.deleteMany({ where: { bookingId } });
         await prisma.booking.delete({ where: { id: bookingId } });
       });
     });
@@ -3058,7 +3069,7 @@ describe('API Endpoints', () => {
           where: { user: { email: 'provider@test.com' } },
         });
 
-        // Create a booking
+        // Create a booking (which now also creates a payment)
         const scheduledAt = new Date();
         scheduledAt.setHours(scheduledAt.getHours() + 24);
 
@@ -3076,18 +3087,13 @@ describe('API Endpoints', () => {
           });
 
         const bookingId = bookingRes.body.data.booking.id;
+        const paymentIntentId = bookingRes.body.data.payment.paymentIntentId;
 
-        // Create a payment record matching the webhook
-        const paymentIntentId = `pi_webhook_test_${Date.now()}`;
-        const payment = await prisma.payment.create({
-          data: {
-            bookingId,
-            amount: 1000,
-            method: 'GCASH',
-            status: 'PENDING',
-            paymongoIntentId: paymentIntentId,
-          },
+        // Get the payment that was created with the booking
+        const payment = await prisma.payment.findFirst({
+          where: { bookingId },
         });
+        expect(payment).not.toBeNull();
 
         // Send webhook
         const res = await request(app)
@@ -3110,7 +3116,7 @@ describe('API Endpoints', () => {
 
         // Verify payment was updated
         const updatedPayment = await prisma.payment.findUnique({
-          where: { id: payment.id },
+          where: { id: payment!.id },
         });
         expect(updatedPayment!.status).toBe('COMPLETED');
         expect(updatedPayment!.paidAt).not.toBeNull();
@@ -3122,7 +3128,7 @@ describe('API Endpoints', () => {
         expect(updatedBooking!.status).toBe('PENDING');
 
         // Clean up
-        await prisma.payment.delete({ where: { id: payment.id } });
+        await prisma.payment.delete({ where: { id: payment!.id } });
         await prisma.booking.delete({ where: { id: bookingId } });
       });
     });

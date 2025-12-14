@@ -184,8 +184,8 @@ class ProviderService {
   async requestPayout(userId: string, data: { amount: number; method: string }) {
     const provider = await prisma.provider.findUnique({ where: { userId } });
     if (!provider) throw new AppError('Provider not found', 404);
-    if (provider.balance < data.amount) throw new AppError('Insufficient balance', 400);
     if (data.amount < 500) throw new AppError('Minimum payout is ₱500', 400);
+    if (provider.balance < data.amount) throw new AppError('Insufficient balance', 400);
     
     const payout = await prisma.payout.create({
       data: {

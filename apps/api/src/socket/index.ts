@@ -87,8 +87,28 @@ export function initializeSocket(server: HttpServer) {
       }
 
       try {
-        // TODO: Calculate ETA using Google Maps API
-        const eta = 15; // placeholder
+        // Get booking destination for ETA calculation
+        const { prisma } = await import('../config/database.js');
+        const { calculateETA, estimateETA } = await import('../utils/maps.js');
+
+        const booking = await prisma.booking.findUnique({
+          where: { id: data.bookingId },
+          select: { latitude: true, longitude: true },
+        });
+
+        let eta = 15; // default
+        if (booking) {
+          const origin = { lat: data.latitude, lng: data.longitude };
+          const destination = { lat: booking.latitude, lng: booking.longitude };
+
+          // Try Google Maps API first, fall back to estimate
+          const etaResult = await calculateETA(origin, destination);
+          if (etaResult) {
+            eta = etaResult.durationInTrafficMinutes || etaResult.durationMinutes;
+          } else {
+            eta = estimateETA(origin, destination);
+          }
+        }
 
         // Store location in Redis
         await locationCache.setBookingLocation(

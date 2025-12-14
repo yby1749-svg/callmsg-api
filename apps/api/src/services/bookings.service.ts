@@ -1,12 +1,14 @@
 // ============================================================================
-// Bookings Service - Placeholder
+// Bookings Service
 // ============================================================================
 
 import { Prisma, BookingStatus } from '@prisma/client';
 import { prisma } from '../config/database.js';
 import { locationCache } from '../config/redis.js';
 import { AppError } from '../middleware/errorHandler.js';
-import { v4 as uuidv4 } from 'uuid';
+import { paymentService } from './payments.service.js';
+import { notificationService } from './notifications.service.js';
+import { sendNotificationToUser, notifyBookingUpdate, notifyBookingCancelled } from '../socket/index.js';
 
 interface BookingQuery {
   limit?: string;
@@ -86,9 +88,15 @@ class BookingService {
       },
       include: { service: true, provider: { include: { user: true } } },
     });
-    
-    // TODO: Create payment intent
-    return { booking, payment: { clientKey: 'pk_test_xxx', paymentIntentId: uuidv4() } };
+
+    // Create payment intent for the booking
+    const paymentIntent = await paymentService.createPaymentIntent({
+      bookingId: booking.id,
+      amount: totalAmount,
+      description: `${booking.service.name} - ${data.duration} minutes`,
+    });
+
+    return { booking, payment: paymentIntent };
   }
 
   async getBookingDetail(userId: string, bookingId: string) {
@@ -107,58 +115,191 @@ class BookingService {
   }
 
   async cancelBooking(userId: string, bookingId: string, reason?: string) {
-    const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: { provider: true, customer: true },
+    });
     if (!booking) throw new AppError('Booking not found', 404);
     if (!['PENDING', 'ACCEPTED'].includes(booking.status)) throw new AppError('Cannot cancel this booking', 400);
-    
-    return prisma.booking.update({
+
+    const updatedBooking = await prisma.booking.update({
       where: { id: bookingId },
       data: { status: 'CANCELLED', cancelledAt: new Date(), cancelledBy: userId, cancelReason: reason },
     });
+
+    // Notify the other party
+    const isCustomer = booking.customerId === userId;
+    const notifyUserId = isCustomer ? booking.provider.userId : booking.customerId;
+    const cancelledBy = isCustomer ? 'customer' : 'provider';
+
+    await notificationService.createNotification(
+      notifyUserId,
+      'BOOKING_CANCELLED',
+      'Booking Cancelled',
+      `Your booking has been cancelled by the ${cancelledBy}`,
+      { bookingId, reason }
+    );
+
+    sendNotificationToUser(notifyUserId, {
+      type: 'BOOKING_CANCELLED',
+      title: 'Booking Cancelled',
+      body: `Your booking has been cancelled by the ${cancelledBy}`,
+      data: { bookingId, reason },
+    });
+
+    notifyBookingCancelled(bookingId, reason);
+
+    return updatedBooking;
   }
 
   async acceptBooking(userId: string, bookingId: string) {
     const provider = await prisma.provider.findUnique({ where: { userId } });
     if (!provider) throw new AppError('Provider not found', 404);
-    
-    const booking = await prisma.booking.findFirst({ where: { id: bookingId, providerId: provider.id } });
+
+    const booking = await prisma.booking.findFirst({
+      where: { id: bookingId, providerId: provider.id },
+      include: { service: true },
+    });
     if (!booking) throw new AppError('Booking not found', 404);
     if (booking.status !== 'PENDING') throw new AppError('Cannot accept this booking', 400);
-    
-    return prisma.booking.update({ where: { id: bookingId }, data: { status: 'ACCEPTED', acceptedAt: new Date() } });
+
+    const updatedBooking = await prisma.booking.update({
+      where: { id: bookingId },
+      data: { status: 'ACCEPTED', acceptedAt: new Date() },
+    });
+
+    // Notify customer
+    await notificationService.createNotification(
+      booking.customerId,
+      'BOOKING_ACCEPTED',
+      'Booking Accepted',
+      `Your booking for ${booking.service.name} has been accepted`,
+      { bookingId }
+    );
+
+    sendNotificationToUser(booking.customerId, {
+      type: 'BOOKING_ACCEPTED',
+      title: 'Booking Accepted',
+      body: `Your booking for ${booking.service.name} has been accepted`,
+      data: { bookingId },
+    });
+
+    notifyBookingUpdate(bookingId, { status: 'ACCEPTED' });
+
+    return updatedBooking;
   }
 
   async rejectBooking(userId: string, bookingId: string, reason?: string) {
     const provider = await prisma.provider.findUnique({ where: { userId } });
     if (!provider) throw new AppError('Provider not found', 404);
-    
-    const booking = await prisma.booking.findFirst({ where: { id: bookingId, providerId: provider.id } });
+
+    const booking = await prisma.booking.findFirst({
+      where: { id: bookingId, providerId: provider.id },
+      include: { service: true },
+    });
     if (!booking) throw new AppError('Booking not found', 404);
     if (booking.status !== 'PENDING') throw new AppError('Cannot reject this booking', 400);
-    
-    return prisma.booking.update({ where: { id: bookingId }, data: { status: 'REJECTED', rejectedAt: new Date(), rejectedReason: reason } });
+
+    const updatedBooking = await prisma.booking.update({
+      where: { id: bookingId },
+      data: { status: 'REJECTED', rejectedAt: new Date(), rejectedReason: reason },
+    });
+
+    // Notify customer
+    await notificationService.createNotification(
+      booking.customerId,
+      'BOOKING_REJECTED',
+      'Booking Declined',
+      `Your booking for ${booking.service.name} was declined`,
+      { bookingId, reason }
+    );
+
+    sendNotificationToUser(booking.customerId, {
+      type: 'BOOKING_REJECTED',
+      title: 'Booking Declined',
+      body: `Your booking for ${booking.service.name} was declined`,
+      data: { bookingId, reason },
+    });
+
+    notifyBookingUpdate(bookingId, { status: 'REJECTED', reason });
+
+    return updatedBooking;
   }
 
   async updateBookingStatus(userId: string, bookingId: string, status: string) {
     const provider = await prisma.provider.findUnique({ where: { userId } });
     if (!provider) throw new AppError('Provider not found', 404);
-    
-    const booking = await prisma.booking.findFirst({ where: { id: bookingId, providerId: provider.id } });
+
+    const booking = await prisma.booking.findFirst({
+      where: { id: bookingId, providerId: provider.id },
+      include: { service: true },
+    });
     if (!booking) throw new AppError('Booking not found', 404);
-    
+
     const updateData: Prisma.BookingUpdateInput = { status: status as BookingStatus };
-    if (status === 'PROVIDER_EN_ROUTE') updateData.enRouteAt = new Date();
-    if (status === 'PROVIDER_ARRIVED') updateData.arrivedAt = new Date();
-    if (status === 'IN_PROGRESS') updateData.startedAt = new Date();
+    let notificationType = '';
+    let notificationTitle = '';
+    let notificationBody = '';
+
+    if (status === 'PROVIDER_EN_ROUTE') {
+      updateData.enRouteAt = new Date();
+      notificationType = 'PROVIDER_EN_ROUTE';
+      notificationTitle = 'Provider On The Way';
+      notificationBody = 'Your provider is on the way to your location';
+    }
+    if (status === 'PROVIDER_ARRIVED') {
+      updateData.arrivedAt = new Date();
+      notificationType = 'PROVIDER_ARRIVED';
+      notificationTitle = 'Provider Arrived';
+      notificationBody = 'Your provider has arrived at your location';
+    }
+    if (status === 'IN_PROGRESS') {
+      updateData.startedAt = new Date();
+      notificationType = 'SERVICE_STARTED';
+      notificationTitle = 'Service Started';
+      notificationBody = `Your ${booking.service.name} session has started`;
+    }
     if (status === 'COMPLETED') {
       updateData.completedAt = new Date();
       await prisma.provider.update({
         where: { id: provider.id },
-        data: { balance: { increment: booking.providerEarning }, totalEarnings: { increment: booking.providerEarning }, completedBookings: { increment: 1 } },
+        data: {
+          balance: { increment: booking.providerEarning },
+          totalEarnings: { increment: booking.providerEarning },
+          completedBookings: { increment: 1 },
+        },
+      });
+      notificationType = 'SERVICE_COMPLETED';
+      notificationTitle = 'Service Completed';
+      notificationBody = `Your ${booking.service.name} session has been completed. Please leave a review!`;
+    }
+
+    const updatedBooking = await prisma.booking.update({
+      where: { id: bookingId },
+      data: updateData,
+    });
+
+    // Send notification to customer
+    if (notificationType) {
+      await notificationService.createNotification(
+        booking.customerId,
+        notificationType,
+        notificationTitle,
+        notificationBody,
+        { bookingId }
+      );
+
+      sendNotificationToUser(booking.customerId, {
+        type: notificationType,
+        title: notificationTitle,
+        body: notificationBody,
+        data: { bookingId },
       });
     }
-    
-    return prisma.booking.update({ where: { id: bookingId }, data: updateData });
+
+    notifyBookingUpdate(bookingId, { status });
+
+    return updatedBooking;
   }
 
   async getProviderLocation(userId: string, bookingId: string) {
@@ -174,36 +315,112 @@ class BookingService {
   async updateBookingLocation(userId: string, bookingId: string, data: { latitude: number; longitude: number; accuracy?: number }) {
     const provider = await prisma.provider.findUnique({ where: { userId } });
     if (!provider) throw new AppError('Provider not found', 404);
-    
+
     const booking = await prisma.booking.findFirst({ where: { id: bookingId, providerId: provider.id } });
     if (!booking) throw new AppError('Booking not found', 404);
-    
-    // TODO: Calculate ETA using Google Maps
-    const eta = 15; // placeholder
-    
+
+    // Calculate ETA using Google Maps API
+    const { calculateETA, estimateETA } = await import('../utils/maps.js');
+    const origin = { lat: data.latitude, lng: data.longitude };
+    const destination = { lat: booking.latitude, lng: booking.longitude };
+
+    let eta = 15; // default
+    const etaResult = await calculateETA(origin, destination);
+    if (etaResult) {
+      eta = etaResult.durationInTrafficMinutes || etaResult.durationMinutes;
+    } else {
+      eta = estimateETA(origin, destination);
+    }
+
     await locationCache.setBookingLocation(bookingId, data.latitude, data.longitude, eta);
     await prisma.locationLog.create({
       data: { bookingId, providerId: provider.id, latitude: data.latitude, longitude: data.longitude, accuracy: data.accuracy },
     });
+
+    // Update provider's last known location
+    await prisma.provider.update({
+      where: { id: provider.id },
+      data: {
+        lastLatitude: data.latitude,
+        lastLongitude: data.longitude,
+        lastLocationAt: new Date(),
+      },
+    });
   }
 
   async triggerSOS(userId: string, bookingId: string, data: SOSData) {
-    const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        customer: true,
+        provider: { include: { user: true } },
+      },
+    });
     if (!booking) throw new AppError('Booking not found', 404);
-    
-    // TODO: Implement SOS logic - notify admin, send SMS to emergency contact
+
+    const isCustomer = booking.customerId === userId;
+    const triggeringUser = isCustomer ? booking.customer : booking.provider.user;
+    const otherPartyUserId = isCustomer ? booking.provider.userId : booking.customerId;
+
     console.log(`🆘 SOS triggered for booking ${bookingId} by user ${userId}`);
-    
+
+    // Create critical report
     await prisma.report.create({
       data: {
         bookingId,
         reporterId: userId,
-        reportedId: booking.customerId === userId ? booking.providerId : booking.customerId,
+        reportedId: isCustomer ? booking.providerId : booking.customerId,
         type: 'OTHER',
         severity: 'CRITICAL',
         description: `SOS triggered: ${data.message || 'Emergency'}`,
       },
     });
+
+    // Get location for SMS
+    const location = await locationCache.getBookingLocation(bookingId);
+    const locationUrl = location
+      ? `https://maps.google.com/?q=${location.lat},${location.lng}`
+      : undefined;
+
+    // Send SMS to emergency contact if available
+    if (triggeringUser.emergencyPhone) {
+      const { sendSOSAlert } = await import('../utils/sms.js');
+      await sendSOSAlert(triggeringUser.emergencyPhone, {
+        userName: `${triggeringUser.firstName} ${triggeringUser.lastName}`,
+        bookingNumber: booking.bookingNumber,
+        locationUrl,
+      });
+    }
+
+    // Send push notification to the other party
+    const { sendPushToUser } = await import('../utils/push.js');
+    await sendPushToUser(otherPartyUserId, {
+      title: 'Emergency Alert',
+      body: `An SOS has been triggered for booking #${booking.bookingNumber}`,
+      data: { bookingId, type: 'SOS' },
+    });
+
+    // Notify admins
+    const admins = await prisma.user.findMany({
+      where: { role: 'ADMIN', status: 'ACTIVE' },
+      select: { id: true },
+    });
+
+    for (const admin of admins) {
+      await notificationService.createNotification(
+        admin.id,
+        'SYSTEM',
+        'SOS Alert',
+        `Emergency SOS triggered for booking #${booking.bookingNumber}`,
+        { bookingId, severity: 'CRITICAL' }
+      );
+
+      await sendPushToUser(admin.id, {
+        title: 'SOS Alert - Immediate Attention Required',
+        body: `Emergency for booking #${booking.bookingNumber}`,
+        data: { bookingId, type: 'SOS', severity: 'CRITICAL' },
+      });
+    }
   }
 }
 
