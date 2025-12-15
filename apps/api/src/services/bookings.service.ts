@@ -22,10 +22,10 @@ interface CreateBookingData {
   duration: number;
   scheduledAt: string;
   addressId?: string;
-  addressText: string;
+  addressText?: string;
   addressNotes?: string;
-  latitude: number;
-  longitude: number;
+  latitude?: number;
+  longitude?: number;
   travelFee?: number;
   customerNotes?: string;
 }
@@ -135,6 +135,32 @@ class BookingService {
     const scheduledAt = new Date(data.scheduledAt);
     await this.validateAvailability(data.providerId, scheduledAt, data.duration);
 
+    // Get address details if addressId is provided
+    let addressText = data.addressText;
+    let latitude = data.latitude;
+    let longitude = data.longitude;
+
+    if (data.addressId && !addressText) {
+      const address = await prisma.address.findUnique({
+        where: { id: data.addressId },
+      });
+      if (!address) throw new AppError('Address not found', 404);
+      if (address.userId !== customerId) throw new AppError('Address does not belong to user', 403);
+
+      // Construct address text from address fields
+      const parts = [address.addressLine1];
+      if (address.addressLine2) parts.push(address.addressLine2);
+      parts.push(address.city, address.province, address.postalCode);
+      addressText = parts.filter(Boolean).join(', ');
+      latitude = address.latitude;
+      longitude = address.longitude;
+    }
+
+    if (!addressText) throw new AppError('Address text is required', 400);
+    if (latitude === undefined || longitude === undefined) {
+      throw new AppError('Address coordinates are required', 400);
+    }
+
     // Get customer info for notification
     const customer = await prisma.user.findUnique({
       where: { id: customerId },
@@ -158,10 +184,10 @@ class BookingService {
         duration: data.duration,
         scheduledAt: new Date(data.scheduledAt),
         addressId: data.addressId,
-        addressText: data.addressText,
+        addressText,
         addressNotes: data.addressNotes,
-        latitude: data.latitude,
-        longitude: data.longitude,
+        latitude,
+        longitude,
         serviceAmount,
         travelFee,
         totalAmount,
