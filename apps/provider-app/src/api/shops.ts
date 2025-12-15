@@ -15,6 +15,12 @@ export interface Shop {
   status: 'PENDING' | 'APPROVED' | 'SUSPENDED' | 'REJECTED';
   balance: number;
   totalEarnings: number;
+  // Bank account info
+  bankName?: string;
+  bankAccountNumber?: string;
+  bankAccountName?: string;
+  gcashNumber?: string;
+  paymayaNumber?: string;
   createdAt: string;
   owner?: {
     firstName: string;

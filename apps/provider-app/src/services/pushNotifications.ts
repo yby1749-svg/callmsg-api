@@ -24,7 +24,7 @@ function getFirebaseApp() {
 function isFirebaseConfigured(): boolean {
   try {
     const firebase = getFirebaseApp();
-    return firebase && firebase.apps && firebase.apps.length > 0;
+    return !!(firebase && firebase.apps && firebase.apps.length > 0);
   } catch {
     return false;
   }

@@ -4,6 +4,7 @@ import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {View, ActivityIndicator, StyleSheet} from 'react-native';
 import {AuthNavigator} from './AuthNavigator';
 import {MainTabNavigator} from './MainTabNavigator';
+import {ShopOwnerTabNavigator} from './ShopOwnerNavigator';
 import {useAuthStore} from '@store';
 import {getTokens} from '@api';
 import {colors} from '@config/theme';
@@ -19,7 +20,7 @@ function SplashScreen() {
 }
 
 export function RootNavigator() {
-  const {isAuthenticated, loadProfile} = useAuthStore();
+  const {isAuthenticated, user, loadProfile} = useAuthStore();
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -43,11 +44,18 @@ export function RootNavigator() {
     return <SplashScreen />;
   }
 
+  // Determine which navigator to show based on user role
+  const isShopOwner = user?.role === 'SHOP_OWNER';
+
   return (
     <NavigationContainer>
       <RootStack.Navigator screenOptions={{headerShown: false}}>
         {isAuthenticated ? (
-          <RootStack.Screen name="Main" component={MainTabNavigator} />
+          isShopOwner ? (
+            <RootStack.Screen name="ShopOwnerMain" component={ShopOwnerTabNavigator} />
+          ) : (
+            <RootStack.Screen name="Main" component={MainTabNavigator} />
+          )
         ) : (
           <RootStack.Screen name="Auth" component={AuthNavigator} />
         )}

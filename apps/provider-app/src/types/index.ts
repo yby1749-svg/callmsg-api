@@ -5,7 +5,7 @@ export interface User {
   firstName: string;
   lastName: string;
   phone: string;
-  role: 'customer' | 'provider' | 'admin';
+  role: 'CUSTOMER' | 'PROVIDER' | 'ADMIN' | 'SHOP_OWNER';
   avatarUrl?: string;
   createdAt: string;
   updatedAt: string;
@@ -243,4 +243,33 @@ export type MainTabParamList = {
   ScheduleTab: undefined;
   EarningsTab: undefined;
   ProfileTab: undefined;
+};
+
+// Shop Owner Navigation Types
+export type ShopOwnerTabParamList = {
+  ShopDashboardTab: undefined;
+  ShopTherapistsTab: undefined;
+  ShopEarningsTab: undefined;
+  ShopProfileTab: undefined;
+};
+
+export type ShopDashboardStackParamList = {
+  ShopDashboard: undefined;
+};
+
+export type ShopTherapistsStackParamList = {
+  ShopTherapists: undefined;
+  SendInvitation: undefined;
+};
+
+export type ShopEarningsStackParamList = {
+  ShopEarnings: undefined;
+  ShopPayoutRequest: undefined;
+  ShopPayoutDetail: {payoutId: string};
+};
+
+export type ShopProfileStackParamList = {
+  ShopProfile: undefined;
+  ShopSettings: undefined;
+  ShopBankAccount: undefined;
 };

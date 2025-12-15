@@ -107,8 +107,14 @@ export const useAuthStore = create<AuthState>((set, _get) => ({
     set({isLoading: true});
     try {
       const response = await providersApi.getProfile();
+      const provider = response.data.data;
+
+      // Extract user info from provider response
+      const user = provider?.user as User | undefined;
+
       set({
-        provider: response.data.data,
+        provider,
+        user: user || null,
         isAuthenticated: true,
         isLoading: false,
       });
