@@ -89,10 +89,9 @@ export function ProviderDetailScreen() {
                 <Text style={styles.serviceDesc}>{ps.service.description}</Text>
               </View>
               <View style={styles.servicePrices}>
-                <Text style={styles.priceLabel}>60 min: ₱{ps.price60}</Text>
-                {ps.price90 && (
-                  <Text style={styles.priceLabel}>90 min: ₱{ps.price90}</Text>
-                )}
+                <Text style={styles.priceLabel}>
+                  90 min: ₱{ps.price90 || ps.price60}
+                </Text>
                 {ps.price120 && (
                   <Text style={styles.priceLabel}>120 min: ₱{ps.price120}</Text>
                 )}

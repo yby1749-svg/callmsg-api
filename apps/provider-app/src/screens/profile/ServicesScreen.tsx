@@ -66,15 +66,11 @@ export function ServicesScreen() {
 
                 <View style={styles.pricesContainer}>
                   <View style={styles.priceRow}>
-                    <Text style={styles.durationLabel}>60 minutes</Text>
-                    <Text style={styles.priceValue}>P{service.price60}</Text>
+                    <Text style={styles.durationLabel}>90 minutes</Text>
+                    <Text style={styles.priceValue}>
+                      P{service.price90 || service.price60}
+                    </Text>
                   </View>
-                  {service.price90 && (
-                    <View style={styles.priceRow}>
-                      <Text style={styles.durationLabel}>90 minutes</Text>
-                      <Text style={styles.priceValue}>P{service.price90}</Text>
-                    </View>
-                  )}
                   {service.price120 && (
                     <View style={styles.priceRow}>
                       <Text style={styles.durationLabel}>120 minutes</Text>

@@ -64,8 +64,7 @@ class BookingService {
       select: { firstName: true, lastName: true },
     });
 
-    const serviceAmount = data.duration === 60 ? providerService.price60 :
-                          data.duration === 90 ? providerService.price90 || providerService.price60 * 1.5 :
+    const serviceAmount = data.duration === 90 ? providerService.price90 || providerService.price60 * 1.5 :
                           providerService.price120 || providerService.price60 * 2;
 
     const travelFee = data.travelFee || 0;

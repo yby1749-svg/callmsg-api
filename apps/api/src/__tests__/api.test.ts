@@ -367,7 +367,7 @@ describe('API Endpoints', () => {
           .send({
             providerId,
             serviceId: 'svc-thai',
-            duration: 60,
+            duration: 90,
             scheduledAt: scheduledAt.toISOString(),
             addressText: 'Test Address, Makati City',
             latitude: 14.5586,
@@ -380,7 +380,7 @@ describe('API Endpoints', () => {
         expect(res.body.data.booking).toHaveProperty('id');
         expect(res.body.data.booking).toHaveProperty('bookingNumber');
         expect(res.body.data.booking.status).toBe('PENDING');
-        expect(res.body.data.booking.duration).toBe(60);
+        expect(res.body.data.booking.duration).toBe(90);
         expect(typeof res.body.data.booking.serviceAmount).toBe('number');
         expect(res.body.data.booking.serviceAmount).toBeGreaterThan(0);
 
@@ -394,7 +394,7 @@ describe('API Endpoints', () => {
           .send({
             providerId: 'invalid-provider-id',
             serviceId: 'svc-thai',
-            duration: 60,
+            duration: 90,
             scheduledAt: new Date().toISOString(),
             addressText: 'Test Address',
             latitude: 14.5586,
@@ -411,7 +411,7 @@ describe('API Endpoints', () => {
           .send({
             providerId,
             serviceId: 'svc-scrub', // Provider doesn't offer body scrub
-            duration: 60,
+            duration: 90,
             scheduledAt: new Date().toISOString(),
             addressText: 'Test Address',
             latitude: 14.5586,
@@ -518,7 +518,7 @@ describe('API Endpoints', () => {
           .send({
             providerId,
             serviceId: 'svc-thai',
-            duration: 60,
+            duration: 90,
             scheduledAt: scheduledAt.toISOString(),
             addressText: 'Location Test Address',
             latitude: 14.5586,
@@ -618,7 +618,7 @@ describe('API Endpoints', () => {
           .send({
             providerId,
             serviceId: 'svc-thai',
-            duration: 60,
+            duration: 90,
             scheduledAt: scheduledAt.toISOString(),
             addressText: 'Reject Test Address',
             latitude: 14.5586,
@@ -653,7 +653,7 @@ describe('API Endpoints', () => {
           .send({
             providerId,
             serviceId: 'svc-thai',
-            duration: 60,
+            duration: 90,
             scheduledAt: scheduledAt.toISOString(),
             addressText: 'Already Accepted Test',
             latitude: 14.5586,
@@ -693,7 +693,7 @@ describe('API Endpoints', () => {
           .send({
             providerId,
             serviceId: 'svc-thai',
-            duration: 60,
+            duration: 90,
             scheduledAt: scheduledAt.toISOString(),
             addressText: 'Location Tracking Test',
             latitude: 14.5586,
@@ -844,7 +844,7 @@ describe('API Endpoints', () => {
         .send({
           providerId,
           serviceId: 'svc-thai',
-          duration: 60,
+          duration: 90,
           scheduledAt: scheduledAt.toISOString(),
           addressText: 'Review Test Address',
           latitude: 14.5586,
@@ -976,7 +976,7 @@ describe('API Endpoints', () => {
           .send({
             providerId,
             serviceId: 'svc-thai',
-            duration: 60,
+            duration: 90,
             scheduledAt: scheduledAt.toISOString(),
             addressText: 'Incomplete Booking Address',
             latitude: 14.5586,
@@ -1030,7 +1030,7 @@ describe('API Endpoints', () => {
           .send({
             providerId,
             serviceId: 'svc-swedish',
-            duration: 60,
+            duration: 90,
             scheduledAt: scheduledAt.toISOString(),
             addressText: 'Rating Test Address',
             latitude: 14.5586,
@@ -1548,7 +1548,7 @@ describe('API Endpoints', () => {
             nameKo: '테스트 마사지',
             description: 'A test massage service',
             category: 'COMBINATION', // Valid enum value
-            baseDuration: 60,
+            baseDuration: 90,
             basePrice: 500,
           });
 
@@ -3079,7 +3079,7 @@ describe('API Endpoints', () => {
           .send({
             providerId: provider!.id,
             serviceId: 'svc-thai',
-            duration: 60,
+            duration: 90,
             scheduledAt: scheduledAt.toISOString(),
             addressText: 'Payment Test Address',
             latitude: 14.5586,
@@ -3358,7 +3358,7 @@ describe('API Endpoints', () => {
           .send({
             providerId: testProviderId,
             serviceId: 'svc-thai',
-            duration: 60,
+            duration: 90,
             scheduledAt: tomorrow.toISOString(),
             addressText: 'Test Address for Report',
             latitude: 14.5586,
@@ -4821,7 +4821,7 @@ describe('API Endpoints', () => {
             customerId: customer!.id,
             providerId: provider!.id,
             serviceId: 'svc-thai',
-            duration: 60,
+            duration: 90,
             scheduledAt,
             addressText: 'Test Location',
             latitude: 14.5586,
@@ -4870,7 +4870,7 @@ describe('API Endpoints', () => {
             customerId: customer!.id,
             providerId: provider!.id,
             serviceId: 'svc-thai',
-            duration: 60,
+            duration: 90,
             scheduledAt,
             addressText: 'Test No Location',
             latitude: 14.5586,
@@ -4931,7 +4931,7 @@ describe('API Endpoints', () => {
             customerId: customer!.id,
             providerId: provider!.id,
             serviceId: 'svc-thai',
-            duration: 60,
+            duration: 90,
             scheduledAt,
             addressText: 'SOS Test Location',
             latitude: 14.5586,
@@ -4990,7 +4990,7 @@ describe('API Endpoints', () => {
             customerId: customer!.id,
             providerId: provider!.id,
             serviceId: 'svc-thai',
-            duration: 60,
+            duration: 90,
             scheduledAt,
             addressText: 'SOS Default Message Test',
             latitude: 14.5586,
@@ -5052,7 +5052,7 @@ describe('API Endpoints', () => {
             customerId: customer!.id,
             providerId: provider!.id,
             serviceId: 'svc-thai',
-            duration: 60,
+            duration: 90,
             scheduledAt,
             addressText: 'Completion Test',
             latitude: 14.5586,
@@ -6588,7 +6588,7 @@ describe('API Endpoints', () => {
               customerId: customer!.id,
               providerId: provider!.id,
               serviceId: 'svc-thai',
-              duration: 60,
+              duration: 90,
               scheduledAt,
               addressText: 'Controller Test Location',
               latitude: 14.5586,
@@ -6634,7 +6634,7 @@ describe('API Endpoints', () => {
               customerId: customer!.id,
               providerId: provider!.id,
               serviceId: 'svc-thai',
-              duration: 60,
+              duration: 90,
               scheduledAt,
               addressText: 'SOS Controller Test',
               latitude: 14.5586,
@@ -7445,7 +7445,7 @@ describe('API Endpoints', () => {
             customerId: customer!.id,
             providerId: provider.id,
             serviceId: service!.id,
-            duration: 60,
+            duration: 90,
             scheduledAt: new Date(Date.now() + 3600000),
             addressText: 'Test Address',
             latitude: 14.5,

@@ -100,7 +100,7 @@ export interface Booking {
   status: BookingStatus;
   scheduledDate: string;
   scheduledTime: string;
-  duration: 60 | 90 | 120;
+  duration: 90 | 120;
   address: string;
   latitude: number;
   longitude: number;
@@ -125,7 +125,7 @@ export interface BookingRequest {
   serviceId: string;
   scheduledDate: string;
   scheduledTime: string;
-  duration: 60 | 90 | 120;
+  duration: 90 | 120;
   address: string;
   latitude: number;
   longitude: number;

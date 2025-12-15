@@ -25,6 +25,6 @@ export const PAYMENT_STATUS = {
   REFUNDED: 'REFUNDED',
 } as const;
 
-export const SERVICE_DURATIONS = [60, 90, 120] as const;
+export const SERVICE_DURATIONS = [90, 120] as const;
 
 export const MIN_PAYOUT_AMOUNT = 500;

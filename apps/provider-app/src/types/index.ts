@@ -77,7 +77,7 @@ export interface Booking {
   serviceId: string;
   addressId: string;
   scheduledAt: string;
-  duration: 60 | 90 | 120;
+  duration: 90 | 120;
   status: BookingStatus;
   price: number;
   notes?: string;

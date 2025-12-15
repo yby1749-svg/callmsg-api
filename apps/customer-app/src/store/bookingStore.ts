@@ -4,7 +4,7 @@ import type {Booking, BookingRequest, Provider, Service, Address} from '@types';
 interface BookingDraft {
   provider?: Provider;
   service?: Service;
-  duration?: 60 | 90 | 120;
+  duration?: 90 | 120;
   scheduledDate?: string;
   scheduledTime?: string;
   address?: Address;
@@ -110,8 +110,6 @@ export const useBookingStore = create<BookingState>((set, get) => ({
 
     if (providerService) {
       switch (draft.duration) {
-        case 60:
-          return providerService.price60;
         case 90:
           return providerService.price90 || providerService.price60 * 1.4;
         case 120:
@@ -121,8 +119,6 @@ export const useBookingStore = create<BookingState>((set, get) => ({
 
     // Fall back to service base price
     switch (draft.duration) {
-      case 60:
-        return draft.service.basePrice60;
       case 90:
         return draft.service.basePrice90;
       case 120:
