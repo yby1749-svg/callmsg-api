@@ -6,7 +6,8 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import {useRoute, RouteProp} from '@react-navigation/native';
+import {useRoute, useNavigation, RouteProp} from '@react-navigation/native';
+import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {useQuery} from '@tanstack/react-query';
 import Icon from 'react-native-vector-icons/Ionicons';
 
@@ -23,9 +24,11 @@ import type {HomeStackParamList} from '@navigation';
 import type {ProviderService, Review} from '@types';
 
 type RouteProps = RouteProp<HomeStackParamList, 'ProviderDetail'>;
+type NavigationProps = NativeStackNavigationProp<HomeStackParamList, 'ProviderDetail'>;
 
 export function ProviderDetailScreen() {
   const route = useRoute<RouteProps>();
+  const navigation = useNavigation<NavigationProps>();
   const {providerId} = route.params;
 
   const {data: provider, isLoading} = useQuery({
@@ -130,7 +133,7 @@ export function ProviderDetailScreen() {
         <Button
           title="Book Now"
           onPress={() => {
-            // TODO: Navigate to booking flow
+            navigation.navigate('BookingFlow', {providerId});
           }}
         />
       </View>

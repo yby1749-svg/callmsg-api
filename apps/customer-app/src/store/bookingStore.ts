@@ -1,8 +1,14 @@
 import {create} from 'zustand';
-import type {Booking, BookingRequest, Provider, Service, Address} from '@types';
+import type {
+  Booking,
+  BookingRequest,
+  ProviderDetail,
+  Service,
+  Address,
+} from '@types';
 
 interface BookingDraft {
-  provider?: Provider;
+  provider?: ProviderDetail;
   service?: Service;
   duration?: 90 | 120;
   scheduledDate?: string;
@@ -104,8 +110,8 @@ export const useBookingStore = create<BookingState>((set, get) => ({
     }
 
     // Find provider's price for this service
-    const providerService = (draft.provider as any).services?.find(
-      (ps: any) => ps.serviceId === draft.service?.id,
+    const providerService = draft.provider.services?.find(
+      ps => ps.serviceId === draft.service?.id,
     );
 
     if (providerService) {

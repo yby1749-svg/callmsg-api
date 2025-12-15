@@ -8,6 +8,7 @@ import {ProviderListScreen} from '@screens/home/ProviderListScreen';
 import {ProviderDetailScreen} from '@screens/home/ProviderDetailScreen';
 import {BookingListScreen} from '@screens/booking/BookingListScreen';
 import {BookingDetailScreen} from '@screens/booking/BookingDetailScreen';
+import {BookingFlowScreen} from '@screens/booking/BookingFlowScreen';
 import {WriteReviewScreen} from '@screens/booking/WriteReviewScreen';
 import {InboxScreen} from '@screens/inbox/InboxScreen';
 import {ProfileScreen} from '@screens/profile/ProfileScreen';
@@ -60,6 +61,11 @@ function HomeStackNavigator() {
         name="ProviderDetail"
         component={ProviderDetailScreen}
         options={{title: 'Provider'}}
+      />
+      <HomeStack.Screen
+        name="BookingFlow"
+        component={BookingFlowScreen}
+        options={{title: 'Book Appointment'}}
       />
     </HomeStack.Navigator>
   );
