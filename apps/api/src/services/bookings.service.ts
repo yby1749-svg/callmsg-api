@@ -148,10 +148,10 @@ class BookingService {
       if (address.userId !== customerId) throw new AppError('Address does not belong to user', 403);
 
       // Construct address text from address fields
-      const parts = [address.addressLine1];
+      const parts: (string | null)[] = [address.addressLine1];
       if (address.addressLine2) parts.push(address.addressLine2);
       parts.push(address.city, address.province, address.postalCode);
-      addressText = parts.filter(Boolean).join(', ');
+      addressText = parts.filter((p): p is string => Boolean(p)).join(', ');
       latitude = address.latitude;
       longitude = address.longitude;
     }

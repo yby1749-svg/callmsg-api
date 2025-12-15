@@ -358,8 +358,10 @@ describe('API Endpoints', () => {
       });
 
       it('should create a new booking', async () => {
+        // Schedule for tomorrow at 10:00 AM to ensure it's within working hours (09:00-21:00)
         const scheduledAt = new Date();
-        scheduledAt.setHours(scheduledAt.getHours() + 3);
+        scheduledAt.setDate(scheduledAt.getDate() + 1);
+        scheduledAt.setHours(10, 0, 0, 0);
 
         const res = await request(app)
           .post('/api/v1/bookings')
@@ -508,9 +510,10 @@ describe('API Endpoints', () => {
       });
 
       it('should update provider location during booking', async () => {
-        // Create a new booking for location test
+        // Create a new booking for location test - schedule within working hours
         const scheduledAt = new Date();
-        scheduledAt.setHours(scheduledAt.getHours() + 4);
+        scheduledAt.setDate(scheduledAt.getDate() + 1);
+        scheduledAt.setHours(12, 0, 0, 0);
 
         const bookingRes = await request(app)
           .post('/api/v1/bookings')
@@ -559,16 +562,18 @@ describe('API Endpoints', () => {
 
     describe('Booking Cancellation', () => {
       it('should cancel a pending booking', async () => {
-        // Create a new booking
+        // Create a new booking - schedule next Monday to ensure provider is available (Mon-Sat)
         const scheduledAt = new Date();
-        scheduledAt.setHours(scheduledAt.getHours() + 5);
+        const daysUntilMonday = (8 - scheduledAt.getDay()) % 7 || 7; // Next Monday
+        scheduledAt.setDate(scheduledAt.getDate() + daysUntilMonday);
+        scheduledAt.setHours(10, 0, 0, 0);
 
         const bookingRes = await request(app)
           .post('/api/v1/bookings')
           .set('Authorization', `Bearer ${customerToken}`)
           .send({
             providerId,
-            serviceId: 'svc-swedish',
+            serviceId: 'svc-thai',
             duration: 90,
             scheduledAt: scheduledAt.toISOString(),
             addressText: 'Cancel Test Address',
@@ -576,6 +581,7 @@ describe('API Endpoints', () => {
             longitude: 121.0178,
           });
 
+        expect(bookingRes.status).toBe(201);
         const bookingId = bookingRes.body.data.booking.id;
 
         // Cancel the booking
@@ -608,9 +614,11 @@ describe('API Endpoints', () => {
 
     describe('Booking Rejection', () => {
       it('should reject a pending booking', async () => {
-        // Create a new booking
+        // Create a new booking - schedule next Tuesday to ensure provider is available (Mon-Sat)
         const scheduledAt = new Date();
-        scheduledAt.setHours(scheduledAt.getHours() + 6);
+        const daysUntilTuesday = (9 - scheduledAt.getDay()) % 7 || 7; // Next Tuesday
+        scheduledAt.setDate(scheduledAt.getDate() + daysUntilTuesday);
+        scheduledAt.setHours(10, 0, 0, 0);
 
         const bookingRes = await request(app)
           .post('/api/v1/bookings')
@@ -643,9 +651,11 @@ describe('API Endpoints', () => {
       });
 
       it('should not reject an already accepted booking', async () => {
-        // Create and accept a booking
+        // Create and accept a booking - schedule next Wednesday to ensure provider is available (Mon-Sat)
         const scheduledAt = new Date();
-        scheduledAt.setHours(scheduledAt.getHours() + 7);
+        const daysUntilWednesday = (10 - scheduledAt.getDay()) % 7 || 7; // Next Wednesday
+        scheduledAt.setDate(scheduledAt.getDate() + daysUntilWednesday);
+        scheduledAt.setHours(10, 0, 0, 0);
 
         const bookingRes = await request(app)
           .post('/api/v1/bookings')
@@ -683,9 +693,10 @@ describe('API Endpoints', () => {
 
     describe('Provider Location Tracking', () => {
       it('should update provider location during booking', async () => {
-        // Create a booking
+        // Create a booking - schedule for tomorrow at 10 AM within working hours
         const scheduledAt = new Date();
-        scheduledAt.setHours(scheduledAt.getHours() + 8);
+        scheduledAt.setDate(scheduledAt.getDate() + 1);
+        scheduledAt.setHours(10, 0, 0, 0);
 
         const bookingRes = await request(app)
           .post('/api/v1/bookings')
@@ -835,8 +846,10 @@ describe('API Endpoints', () => {
       providerId = provider!.id;
 
       // Create and complete a booking for review tests
+      // Schedule for tomorrow at 10:00 AM to ensure it's within working hours
       const scheduledAt = new Date();
-      scheduledAt.setHours(scheduledAt.getHours() + 2);
+      scheduledAt.setDate(scheduledAt.getDate() + 1);
+      scheduledAt.setHours(10, 0, 0, 0);
 
       const bookingRes = await request(app)
         .post('/api/v1/bookings')
@@ -1020,16 +1033,17 @@ describe('API Endpoints', () => {
       });
 
       it('should validate rating range', async () => {
-        // Create another completed booking for this test
+        // Create another completed booking for this test - schedule within working hours
         const scheduledAt = new Date();
-        scheduledAt.setHours(scheduledAt.getHours() + 3);
+        scheduledAt.setDate(scheduledAt.getDate() + 1);
+        scheduledAt.setHours(11, 0, 0, 0);
 
         const bookingRes = await request(app)
           .post('/api/v1/bookings')
           .set('Authorization', `Bearer ${customerToken}`)
           .send({
             providerId,
-            serviceId: 'svc-swedish',
+            serviceId: 'svc-thai',
             duration: 90,
             scheduledAt: scheduledAt.toISOString(),
             addressText: 'Rating Test Address',
@@ -3070,8 +3084,10 @@ describe('API Endpoints', () => {
         });
 
         // Create a booking (which now also creates a payment)
+        // Schedule for tomorrow at 10:00 AM to ensure it's within working hours
         const scheduledAt = new Date();
-        scheduledAt.setHours(scheduledAt.getHours() + 24);
+        scheduledAt.setDate(scheduledAt.getDate() + 1);
+        scheduledAt.setHours(10, 0, 0, 0);
 
         const bookingRes = await request(app)
           .post('/api/v1/bookings')
