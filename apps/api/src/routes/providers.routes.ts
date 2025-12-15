@@ -5,6 +5,7 @@
 import { Router } from 'express';
 import { authenticate, optionalAuth, requireProvider } from '../middleware/auth.js';
 import * as providerController from '../controllers/providers.controller.js';
+import * as blockedDatesController from '../controllers/blocked-dates.controller.js';
 import * as shopsController from '../controllers/shops.controller.js';
 
 const router = Router();
@@ -172,6 +173,62 @@ router.delete('/me/services/:serviceId', authenticate, requireProvider, provider
  */
 router.get('/me/availability', authenticate, requireProvider, providerController.getMyAvailability);
 router.put('/me/availability', authenticate, requireProvider, providerController.setMyAvailability);
+
+/**
+ * @swagger
+ * /providers/me/blocked-dates:
+ *   get:
+ *     summary: Get my blocked dates
+ *     tags: [Providers]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of blocked dates
+ *   post:
+ *     summary: Add a blocked date
+ *     tags: [Providers]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [date]
+ *             properties:
+ *               date:
+ *                 type: string
+ *                 format: date
+ *               reason:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Blocked date added
+ */
+router.get('/me/blocked-dates', authenticate, requireProvider, blockedDatesController.getMyBlockedDates);
+router.post('/me/blocked-dates', authenticate, requireProvider, blockedDatesController.addBlockedDate);
+
+/**
+ * @swagger
+ * /providers/me/blocked-dates/{blockedDateId}:
+ *   delete:
+ *     summary: Remove a blocked date
+ *     tags: [Providers]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: blockedDateId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       204:
+ *         description: Blocked date removed
+ */
+router.delete('/me/blocked-dates/:blockedDateId', authenticate, requireProvider, blockedDatesController.removeBlockedDate);
 
 // Online/Offline status
 router.patch('/me/status', authenticate, requireProvider, providerController.updateOnlineStatus);

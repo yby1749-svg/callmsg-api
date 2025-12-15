@@ -2,7 +2,7 @@ import React, {useEffect} from 'react';
 import {View, Text, StyleSheet, ScrollView, Switch} from 'react-native';
 import Toast from 'react-native-toast-message';
 
-import {Button, Card} from '@components';
+import {Button, Card, TimePicker} from '@components';
 import {useAvailabilityStore} from '@store';
 import {colors, typography, spacing, borderRadius} from '@config/theme';
 import {DAYS_OF_WEEK} from '@config/constants';
@@ -15,6 +15,7 @@ export function AvailabilityScreen() {
     fetchAvailability,
     updateAvailability,
     toggleDayAvailability,
+    updateDaySlots,
   } = useAvailabilityStore();
 
   useEffect(() => {
@@ -40,6 +41,22 @@ export function AvailabilityScreen() {
 
   const formatDayName = (day: string) => {
     return day.charAt(0).toUpperCase() + day.slice(1);
+  };
+
+  const handleTimeChange = (
+    day: keyof WeeklySchedule,
+    slotIndex: number,
+    field: 'start' | 'end',
+    time: string,
+  ) => {
+    const daySchedule = weeklySchedule[day];
+    const newSlots = daySchedule.slots.map((slot, index) => {
+      if (index === slotIndex) {
+        return {...slot, [field]: time};
+      }
+      return slot;
+    });
+    updateDaySlots(day, newSlots);
   };
 
   return (
@@ -79,17 +96,33 @@ export function AvailabilityScreen() {
                   {daySchedule.slots.map((slot, index) => (
                     <View key={index} style={styles.slotRow}>
                       <View style={styles.timeInput}>
-                        <Text style={styles.timeLabel}>From</Text>
-                        <View style={styles.timeValue}>
-                          <Text style={styles.timeText}>{slot.start}</Text>
-                        </View>
+                        <TimePicker
+                          value={slot.start}
+                          onChange={(time) =>
+                            handleTimeChange(
+                              day as keyof WeeklySchedule,
+                              index,
+                              'start',
+                              time,
+                            )
+                          }
+                          label="From"
+                        />
                       </View>
                       <Text style={styles.timeSeparator}>-</Text>
                       <View style={styles.timeInput}>
-                        <Text style={styles.timeLabel}>To</Text>
-                        <View style={styles.timeValue}>
-                          <Text style={styles.timeText}>{slot.end}</Text>
-                        </View>
+                        <TimePicker
+                          value={slot.end}
+                          onChange={(time) =>
+                            handleTimeChange(
+                              day as keyof WeeklySchedule,
+                              index,
+                              'end',
+                              time,
+                            )
+                          }
+                          label="To"
+                        />
                       </View>
                     </View>
                   ))}
@@ -158,21 +191,6 @@ const styles = StyleSheet.create({
   },
   timeInput: {
     flex: 1,
-  },
-  timeLabel: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    marginBottom: spacing.xs,
-  },
-  timeValue: {
-    backgroundColor: colors.surface,
-    padding: spacing.sm,
-    borderRadius: borderRadius.md,
-    alignItems: 'center',
-  },
-  timeText: {
-    ...typography.body,
-    color: colors.text,
   },
   timeSeparator: {
     ...typography.body,

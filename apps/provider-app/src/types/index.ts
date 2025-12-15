@@ -228,6 +228,7 @@ export type DashboardStackParamList = {
 export type ScheduleStackParamList = {
   Calendar: undefined;
   Availability: undefined;
+  BlockedDates: undefined;
 };
 
 export type EarningsStackParamList = {

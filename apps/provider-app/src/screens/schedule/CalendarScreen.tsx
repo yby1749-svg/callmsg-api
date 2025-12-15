@@ -109,14 +109,24 @@ export function CalendarScreen() {
         })}
       </View>
 
-      {/* Availability Button */}
-      <TouchableOpacity
-        style={styles.availabilityButton}
-        onPress={() => navigation.navigate('Availability')}>
-        <Icon name="settings-outline" size={20} color={colors.primary} />
-        <Text style={styles.availabilityText}>Set Availability</Text>
-        <Icon name="chevron-forward" size={20} color={colors.primary} />
-      </TouchableOpacity>
+      {/* Quick Actions */}
+      <View style={styles.quickActions}>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() => navigation.navigate('Availability')}>
+          <Icon name="time-outline" size={20} color={colors.primary} />
+          <Text style={styles.actionText}>Set Availability</Text>
+          <Icon name="chevron-forward" size={20} color={colors.textLight} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() => navigation.navigate('BlockedDates')}>
+          <Icon name="calendar-outline" size={20} color={colors.primary} />
+          <Text style={styles.actionText}>Blocked Dates</Text>
+          <Icon name="chevron-forward" size={20} color={colors.textLight} />
+        </TouchableOpacity>
+      </View>
 
       {/* Bookings List */}
       <ScrollView
@@ -214,18 +224,23 @@ const styles = StyleSheet.create({
     color: colors.textInverse,
     fontWeight: '600',
   },
-  availabilityButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.md,
+  quickActions: {
     backgroundColor: colors.card,
     margin: spacing.md,
     borderRadius: borderRadius.md,
-    gap: spacing.sm,
+    overflow: 'hidden',
   },
-  availabilityText: {
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    gap: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.divider,
+  },
+  actionText: {
     ...typography.body,
-    color: colors.primary,
+    color: colors.text,
     flex: 1,
   },
   bookingsList: {

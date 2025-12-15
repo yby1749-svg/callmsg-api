@@ -339,6 +339,7 @@ model Provider {
   documents           ProviderDocument[]
   services            ProviderService[]
   availability        ProviderAvailability[]
+  blockedDates        ProviderBlockedDate[]
   bookings            Booking[]            @relation("ProviderBookings")
   payouts             Payout[]
   locationLogs        LocationLog[]
@@ -450,6 +451,23 @@ model ProviderAvailability {
   updatedAt   DateTime @updatedAt
   
   @@unique([providerId, dayOfWeek])
+  @@index([providerId])
+}
+
+// ----------------------------------------------------------------------------
+// ProviderBlockedDate - 프로바이더 휴무일
+// ----------------------------------------------------------------------------
+model ProviderBlockedDate {
+  id          String   @id @default(cuid())
+  providerId  String
+  provider    Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  date        DateTime @db.Date
+  reason      String?
+
+  createdAt   DateTime @default(now())
+
+  @@unique([providerId, date])
   @@index([providerId])
 }
 

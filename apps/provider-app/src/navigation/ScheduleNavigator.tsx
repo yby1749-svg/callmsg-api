@@ -2,6 +2,7 @@ import React from 'react';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {CalendarScreen} from '@screens/schedule/CalendarScreen';
 import {AvailabilityScreen} from '@screens/schedule/AvailabilityScreen';
+import {BlockedDatesScreen} from '@screens/schedule/BlockedDatesScreen';
 import type {ScheduleStackParamList} from '@types';
 import {colors} from '@config/theme';
 
@@ -26,6 +27,11 @@ export function ScheduleNavigator() {
         name="Availability"
         component={AvailabilityScreen}
         options={{title: 'Set Availability'}}
+      />
+      <Stack.Screen
+        name="BlockedDates"
+        component={BlockedDatesScreen}
+        options={{title: 'Blocked Dates'}}
       />
     </Stack.Navigator>
   );

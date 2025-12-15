@@ -7,6 +7,7 @@ export {usersApi} from './users';
 export {providerShopApi, shopOwnerApi} from './shops';
 export {notificationsApi} from './notifications';
 export {reviewsApi} from './reviews';
+export {blockedDatesApi} from './blocked-dates';
 export type {
   Shop,
   ShopInvitation,
@@ -17,3 +18,4 @@ export type {
 } from './shops';
 export type {NotificationItem} from './notifications';
 export type {ReviewsResponse} from './reviews';
+export type {BlockedDate} from './blocked-dates';

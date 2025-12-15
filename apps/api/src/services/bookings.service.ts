@@ -10,6 +10,7 @@ import { paymentService } from './payments.service.js';
 import { notificationService } from './notifications.service.js';
 import { sendNotificationToUser, notifyBookingUpdate, notifyBookingCancelled } from '../socket/index.js';
 import { sendPushToUser } from '../utils/push.js';
+import { format, startOfDay, addMinutes, parse } from 'date-fns';
 
 interface BookingQuery {
   limit?: string;
@@ -34,6 +35,78 @@ interface SOSData {
 }
 
 class BookingService {
+  async validateAvailability(providerId: string, scheduledAt: Date, duration: number) {
+    const dayOfWeek = scheduledAt.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+    const timeStr = format(scheduledAt, 'HH:mm');
+    const dateOnly = startOfDay(scheduledAt);
+    const endTime = addMinutes(scheduledAt, duration);
+    const endTimeStr = format(endTime, 'HH:mm');
+
+    // Check if provider has any availability configured
+    const hasAvailabilityConfig = await prisma.providerAvailability.count({
+      where: { providerId },
+    });
+
+    // Only validate availability if provider has configured their schedule
+    if (hasAvailabilityConfig > 0) {
+      // 1. Check if provider works on this day
+      const availability = await prisma.providerAvailability.findFirst({
+        where: { providerId, dayOfWeek, isAvailable: true },
+      });
+      if (!availability) {
+        throw new AppError('Provider is not available on this day', 400);
+      }
+
+      // 2. Check if start time is within working hours
+      if (timeStr < availability.startTime) {
+        throw new AppError(`Provider is not available before ${availability.startTime}`, 400);
+      }
+
+      // 3. Check if end time (including service duration) is within working hours
+      if (endTimeStr > availability.endTime) {
+        throw new AppError(`Service would end after provider's working hours (${availability.endTime})`, 400);
+      }
+    }
+
+    // 4. Check if date is blocked (always check this)
+    const blocked = await prisma.providerBlockedDate.findFirst({
+      where: { providerId, date: dateOnly },
+    });
+    if (blocked) {
+      throw new AppError('Provider is unavailable on this date', 400);
+    }
+
+    // 5. Check for conflicting bookings (always check this)
+    // New booking: [scheduledAt, scheduledAt + duration]
+    const newBookingEnd = new Date(scheduledAt.getTime() + duration * 60 * 1000);
+    // Only check bookings that could possibly overlap (max 2 hours before new booking start)
+    const earliestConflict = new Date(scheduledAt.getTime() - 2 * 60 * 60 * 1000);
+
+    // Find bookings that could potentially overlap
+    const conflictingBookings = await prisma.booking.findMany({
+      where: {
+        providerId,
+        status: { in: ['PENDING', 'ACCEPTED', 'PROVIDER_EN_ROUTE', 'PROVIDER_ARRIVED', 'IN_PROGRESS'] },
+        scheduledAt: {
+          gte: earliestConflict, // Don't check bookings that started too long ago
+          lt: newBookingEnd,     // And starts before new booking ends
+        },
+      },
+      select: { id: true, scheduledAt: true, duration: true },
+    });
+
+    // Check if any existing booking actually overlaps
+    const hasConflict = conflictingBookings.some(existing => {
+      const existingEnd = new Date(existing.scheduledAt.getTime() + existing.duration * 60 * 1000);
+      // Conflict if: new.start < existing.end
+      return scheduledAt < existingEnd;
+    });
+
+    if (hasConflict) {
+      throw new AppError('Provider already has a booking at this time', 400);
+    }
+  }
+
   async listBookings(userId: string, role: string, query: BookingQuery) {
     const where = role === 'provider' 
       ? { provider: { userId } }
@@ -57,6 +130,10 @@ class BookingService {
 
     const providerService = provider.services[0];
     if (!providerService) throw new AppError('Service not available', 400);
+
+    // Validate provider availability
+    const scheduledAt = new Date(data.scheduledAt);
+    await this.validateAvailability(data.providerId, scheduledAt, data.duration);
 
     // Get customer info for notification
     const customer = await prisma.user.findUnique({
