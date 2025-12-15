@@ -36,6 +36,11 @@ export function ProfileScreen() {
       screen: 'Services' as const,
     },
     {
+      icon: 'star-outline',
+      label: 'My Reviews',
+      screen: 'Reviews' as const,
+    },
+    {
       icon: 'notifications-outline',
       label: 'Notifications',
       screen: 'Notifications' as const,

@@ -6,6 +6,7 @@ export {earningsApi} from './earnings';
 export {usersApi} from './users';
 export {providerShopApi, shopOwnerApi} from './shops';
 export {notificationsApi} from './notifications';
+export {reviewsApi} from './reviews';
 export type {
   Shop,
   ShopInvitation,
@@ -15,3 +16,4 @@ export type {
   ShopPayout,
 } from './shops';
 export type {NotificationItem} from './notifications';
+export type {ReviewsResponse} from './reviews';

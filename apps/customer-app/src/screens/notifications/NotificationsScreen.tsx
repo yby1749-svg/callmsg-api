@@ -123,10 +123,18 @@ export function NotificationsScreen() {
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
+    if (diffMins < 1) {
+      return 'Just now';
+    }
+    if (diffMins < 60) {
+      return `${diffMins}m ago`;
+    }
+    if (diffHours < 24) {
+      return `${diffHours}h ago`;
+    }
+    if (diffDays < 7) {
+      return `${diffDays}d ago`;
+    }
     return date.toLocaleDateString();
   };
 
@@ -137,7 +145,8 @@ export function NotificationsScreen() {
       <TouchableOpacity
         style={[styles.notificationItem, !item.isRead && styles.unread]}
         onPress={() => handleNotificationPress(item)}>
-        <View style={[styles.iconContainer, {backgroundColor: icon.color + '20'}]}>
+        <View
+          style={[styles.iconContainer, {backgroundColor: icon.color + '20'}]}>
           <Icon name={icon.name} size={24} color={icon.color} />
         </View>
         <View style={styles.content}>
@@ -191,7 +200,11 @@ export function NotificationsScreen() {
 
       {notifications.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Icon name="notifications-off-outline" size={64} color={colors.textLight} />
+          <Icon
+            name="notifications-off-outline"
+            size={64}
+            color={colors.textLight}
+          />
           <Text style={styles.emptyText}>No notifications yet</Text>
           <Text style={styles.emptySubtext}>
             You'll see booking updates and messages here

@@ -18,3 +18,17 @@ export const replyToReview = async (req: Request, res: Response, next: NextFunct
     res.json({ success: true, data: review });
   } catch (error) { next(error); }
 };
+
+export const getMyReviews = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const result = await reviewService.getMyReviews(req.user!.id, req.query as { limit?: string; page?: string });
+    res.json({ success: true, ...result });
+  } catch (error) { next(error); }
+};
+
+export const getReceivedReviews = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const result = await reviewService.getReceivedReviews(req.user!.id, req.query as { limit?: string; page?: string });
+    res.json({ success: true, ...result });
+  } catch (error) { next(error); }
+};

@@ -4,6 +4,7 @@ import {ProfileScreen} from '@screens/profile/ProfileScreen';
 import {ServicesScreen} from '@screens/profile/ServicesScreen';
 import {SettingsScreen} from '@screens/profile/SettingsScreen';
 import {NotificationsScreen} from '@screens/notifications';
+import {ReviewsScreen} from '@screens/reviews';
 import {MyShopScreen, ShopInvitationsScreen} from '@screens/shop';
 import type {ProfileStackParamList} from '@types';
 import {colors} from '@config/theme';
@@ -39,6 +40,11 @@ export function ProfileNavigator() {
         name="Notifications"
         component={NotificationsScreen}
         options={{headerShown: false}}
+      />
+      <Stack.Screen
+        name="Reviews"
+        component={ReviewsScreen}
+        options={{title: 'My Reviews'}}
       />
       <Stack.Screen
         name="MyShop"

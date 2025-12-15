@@ -4,10 +4,12 @@ import {useNotificationStore} from '@store/notificationStore';
 import type {Notification} from '@types';
 
 // Lazy-loaded Firebase modules to prevent crashes when not configured
-let messagingModule: typeof import('@react-native-firebase/messaging').default | null =
-  null;
-let firebaseAppModule: typeof import('@react-native-firebase/app').default | null =
-  null;
+let messagingModule:
+  | typeof import('@react-native-firebase/messaging').default
+  | null = null;
+let firebaseAppModule:
+  | typeof import('@react-native-firebase/app').default
+  | null = null;
 
 // Safely get Firebase app module
 function getFirebaseApp() {
@@ -61,7 +63,12 @@ export async function requestNotificationPermission(): Promise<boolean> {
       const enabled =
         authStatus === AuthorizationStatus.AUTHORIZED ||
         authStatus === AuthorizationStatus.PROVISIONAL;
-      console.log('[Push] iOS permission status:', authStatus, 'enabled:', enabled);
+      console.log(
+        '[Push] iOS permission status:',
+        authStatus,
+        'enabled:',
+        enabled,
+      );
       return enabled;
     } else {
       // Android 13+ requires runtime permission
@@ -189,10 +196,12 @@ export function setupNotificationOpenedListener(): () => void {
     return () => {};
   }
 
-  const unsubscribe = messaging().onNotificationOpenedApp((remoteMessage: any) => {
-    console.log('[Push] Notification opened app:', remoteMessage);
-    handleNotificationAction(remoteMessage.data);
-  });
+  const unsubscribe = messaging().onNotificationOpenedApp(
+    (remoteMessage: any) => {
+      console.log('[Push] Notification opened app:', remoteMessage);
+      handleNotificationAction(remoteMessage.data);
+    },
+  );
 
   return unsubscribe;
 }
@@ -219,7 +228,9 @@ export async function getInitialNotification(): Promise<void> {
 function handleNotificationAction(
   data?: {[key: string]: string | object} | undefined,
 ): void {
-  if (!data) return;
+  if (!data) {
+    return;
+  }
 
   const type = typeof data.type === 'string' ? data.type : undefined;
   const bookingId =

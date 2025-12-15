@@ -8,6 +8,7 @@ import {ProviderListScreen} from '@screens/home/ProviderListScreen';
 import {ProviderDetailScreen} from '@screens/home/ProviderDetailScreen';
 import {BookingListScreen} from '@screens/booking/BookingListScreen';
 import {BookingDetailScreen} from '@screens/booking/BookingDetailScreen';
+import {WriteReviewScreen} from '@screens/booking/WriteReviewScreen';
 import {InboxScreen} from '@screens/inbox/InboxScreen';
 import {ProfileScreen} from '@screens/profile/ProfileScreen';
 import {EditProfileScreen} from '@screens/profile/EditProfileScreen';
@@ -76,6 +77,11 @@ function BookingsStackNavigator() {
         name="BookingDetail"
         component={BookingDetailScreen}
         options={{title: 'Booking Details'}}
+      />
+      <BookingsStack.Screen
+        name="WriteReview"
+        component={WriteReviewScreen}
+        options={{title: 'Write Review'}}
       />
     </BookingsStack.Navigator>
   );

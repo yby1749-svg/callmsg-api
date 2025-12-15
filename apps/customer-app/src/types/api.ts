@@ -117,6 +117,7 @@ export interface Booking {
   provider?: Provider;
   service: Service;
   payment?: Payment;
+  review?: Review;
 }
 
 export interface BookingRequest {

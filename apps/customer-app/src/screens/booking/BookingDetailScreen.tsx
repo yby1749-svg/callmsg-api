@@ -7,7 +7,8 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import {useRoute, RouteProp} from '@react-navigation/native';
+import {useRoute, useNavigation, RouteProp} from '@react-navigation/native';
+import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {useQuery, useMutation, useQueryClient} from '@tanstack/react-query';
 import Icon from 'react-native-vector-icons/Ionicons';
 import {format} from 'date-fns';
@@ -25,9 +26,14 @@ import {
 import type {BookingsStackParamList} from '@navigation';
 
 type RouteProps = RouteProp<BookingsStackParamList, 'BookingDetail'>;
+type NavigationProps = NativeStackNavigationProp<
+  BookingsStackParamList,
+  'BookingDetail'
+>;
 
 export function BookingDetailScreen() {
   const route = useRoute<RouteProps>();
+  const navigation = useNavigation<NavigationProps>();
   const {bookingId} = route.params;
   const queryClient = useQueryClient();
   const {showSuccess, showError} = useUIStore();
@@ -87,6 +93,17 @@ export function BookingDetailScreen() {
   }
 
   const canCancel = ['PENDING', 'CONFIRMED'].includes(booking.status);
+  const canReview =
+    booking.status === 'COMPLETED' && !booking.review && booking.provider;
+
+  const handleWriteReview = () => {
+    if (booking.provider) {
+      navigation.navigate('WriteReview', {
+        bookingId: booking.id,
+        providerId: booking.provider.id,
+      });
+    }
+  };
 
   return (
     <ScrollView style={styles.container}>
@@ -195,14 +212,23 @@ export function BookingDetailScreen() {
         </View>
       </View>
 
-      {canCancel && (
+      {(canCancel || canReview) && (
         <View style={styles.footer}>
-          <Button
-            title="Cancel Booking"
-            variant="outline"
-            onPress={handleCancel}
-            loading={cancelMutation.isPending}
-          />
+          {canReview && (
+            <Button
+              title="Write Review"
+              onPress={handleWriteReview}
+              style={styles.reviewButton}
+            />
+          )}
+          {canCancel && (
+            <Button
+              title="Cancel Booking"
+              variant="outline"
+              onPress={handleCancel}
+              loading={cancelMutation.isPending}
+            />
+          )}
         </View>
       )}
     </ScrollView>
@@ -336,5 +362,9 @@ const styles = StyleSheet.create({
   },
   footer: {
     padding: spacing.lg,
+    gap: spacing.md,
+  },
+  reviewButton: {
+    marginBottom: 0,
   },
 });

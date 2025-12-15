@@ -193,14 +193,21 @@ export interface Notification {
 export interface Review {
   id: string;
   bookingId: string;
-  customerId: string;
-  providerId: string;
+  authorId: string;
+  targetId: string;
   rating: number;
   comment?: string;
+  reply?: string;
+  repliedAt?: string;
   author: {
     firstName: string;
     lastName: string;
     avatarUrl?: string;
+  };
+  booking?: {
+    service: {
+      name: string;
+    };
   };
   createdAt: string;
 }
@@ -235,6 +242,7 @@ export type ProfileStackParamList = {
   Services: undefined;
   Settings: undefined;
   Notifications: undefined;
+  Reviews: undefined;
   MyShop: undefined;
   ShopInvitations: undefined;
 };
