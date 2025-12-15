@@ -363,6 +363,29 @@ describe('API Endpoints', () => {
         scheduledAt.setDate(scheduledAt.getDate() + 1);
         scheduledAt.setHours(10, 0, 0, 0);
 
+        // Ensure provider has availability for tomorrow's day of week
+        const tomorrowDayOfWeek = scheduledAt.getDay();
+        await prisma.providerAvailability.upsert({
+          where: {
+            providerId_dayOfWeek: {
+              providerId,
+              dayOfWeek: tomorrowDayOfWeek,
+            },
+          },
+          update: {
+            isAvailable: true,
+            startTime: '09:00',
+            endTime: '21:00',
+          },
+          create: {
+            providerId,
+            dayOfWeek: tomorrowDayOfWeek,
+            isAvailable: true,
+            startTime: '09:00',
+            endTime: '21:00',
+          },
+        });
+
         const res = await request(app)
           .post('/api/v1/bookings')
           .set('Authorization', `Bearer ${customerToken}`)
@@ -562,18 +585,18 @@ describe('API Endpoints', () => {
 
     describe('Booking Cancellation', () => {
       it('should cancel a pending booking', async () => {
-        // First ensure provider has availability for Monday (day 1)
-        await prisma.providerAvailability.upsert({
-          where: { providerId_dayOfWeek: { providerId, dayOfWeek: 1 } },
-          update: { isAvailable: true, startTime: '09:00', endTime: '21:00' },
-          create: { providerId, dayOfWeek: 1, isAvailable: true, startTime: '09:00', endTime: '21:00' },
-        });
-
-        // Create a new booking - schedule next Monday at 15:00 UTC to avoid conflicts
+        // Schedule for tomorrow at 11 AM
         const scheduledAt = new Date();
-        const daysUntilMonday = (1 - scheduledAt.getDay() + 7) % 7 || 7; // Next Monday (day 1)
-        scheduledAt.setDate(scheduledAt.getDate() + daysUntilMonday);
-        scheduledAt.setUTCHours(15, 0, 0, 0); // Set UTC hours directly
+        scheduledAt.setDate(scheduledAt.getDate() + 1);
+        scheduledAt.setHours(11, 0, 0, 0);
+
+        // Ensure provider has availability for tomorrow's day of week
+        const dayOfWeek = scheduledAt.getDay();
+        await prisma.providerAvailability.upsert({
+          where: { providerId_dayOfWeek: { providerId, dayOfWeek } },
+          update: { isAvailable: true, startTime: '09:00', endTime: '21:00' },
+          create: { providerId, dayOfWeek, isAvailable: true, startTime: '09:00', endTime: '21:00' },
+        });
 
         const bookingRes = await request(app)
           .post('/api/v1/bookings')
@@ -3119,6 +3142,14 @@ describe('API Endpoints', () => {
         const scheduledAt = new Date();
         scheduledAt.setDate(scheduledAt.getDate() + 1);
         scheduledAt.setHours(10, 0, 0, 0);
+
+        // Ensure provider has availability for tomorrow
+        const dayOfWeek = scheduledAt.getDay();
+        await prisma.providerAvailability.upsert({
+          where: { providerId_dayOfWeek: { providerId: provider!.id, dayOfWeek } },
+          update: { isAvailable: true, startTime: '09:00', endTime: '21:00' },
+          create: { providerId: provider!.id, dayOfWeek, isAvailable: true, startTime: '09:00', endTime: '21:00' },
+        });
 
         const bookingRes = await request(app)
           .post('/api/v1/bookings')
