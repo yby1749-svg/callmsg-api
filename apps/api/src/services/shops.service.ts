@@ -395,11 +395,22 @@ class ShopsService {
   }
 
   async getProviderInvitations(userId: string) {
-    const provider = await prisma.provider.findUnique({ where: { userId } });
+    const provider = await prisma.provider.findUnique({
+      where: { userId },
+      include: { user: { select: { email: true } } },
+    });
     if (!provider) throw new AppError('Provider not found', 404);
 
+    // Find invitations by provider ID or by email
     return prisma.shopInvitation.findMany({
-      where: { targetProviderId: provider.id, status: 'PENDING', expiresAt: { gt: new Date() } },
+      where: {
+        OR: [
+          { targetProviderId: provider.id },
+          { targetEmail: provider.user.email },
+        ],
+        status: 'PENDING',
+        expiresAt: { gt: new Date() },
+      },
       include: {
         shop: {
           include: {
@@ -413,7 +424,10 @@ class ShopsService {
   }
 
   async acceptInvitation(userId: string, invitationId: string) {
-    const provider = await prisma.provider.findUnique({ where: { userId } });
+    const provider = await prisma.provider.findUnique({
+      where: { userId },
+      include: { user: { select: { email: true } } },
+    });
     if (!provider) throw new AppError('Provider not found', 404);
     if (provider.shopId) throw new AppError('You are already in a shop', 400);
 
@@ -421,7 +435,12 @@ class ShopsService {
       where: { id: invitationId },
       include: { shop: true },
     });
-    if (!invitation || invitation.targetProviderId !== provider.id) {
+    // Check if invitation belongs to this provider (by ID or email)
+    const isValidInvitation = invitation && (
+      invitation.targetProviderId === provider.id ||
+      invitation.targetEmail === provider.user.email
+    );
+    if (!isValidInvitation) {
       throw new AppError('Invitation not found', 404);
     }
     if (invitation.status !== 'PENDING') {
