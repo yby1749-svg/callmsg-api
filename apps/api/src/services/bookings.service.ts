@@ -37,8 +37,9 @@ interface SOSData {
 
 class BookingService {
   async validateAvailability(providerId: string, scheduledAt: Date, duration: number) {
-    const dayOfWeek = scheduledAt.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
-    const timeStr = format(scheduledAt, 'HH:mm');
+    // Server runs in Asia/Manila timezone, so format() already converts UTC to local time
+    const dayOfWeek = scheduledAt.getDay(); // Gets day in local (Manila) timezone
+    const timeStr = format(scheduledAt, 'HH:mm'); // Formats in local (Manila) timezone
     const dateOnly = startOfDay(scheduledAt);
     const endTime = addMinutes(scheduledAt, duration);
     const endTimeStr = format(endTime, 'HH:mm');

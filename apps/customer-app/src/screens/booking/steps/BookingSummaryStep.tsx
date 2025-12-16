@@ -61,18 +61,23 @@ export function BookingSummaryStep() {
         throw new Error('Missing booking information');
       }
 
-      // Create the booking - use addressText if available
+      // Combine date and time into ISO string for API
+      // Create a Date object from local date/time, then convert to UTC ISO string
+      const localDateTime = new Date(`${draft.scheduledDate}T${draft.scheduledTime}:00`);
+      const scheduledAt = localDateTime.toISOString();
+
+      // Create the booking with correct API format
       const bookingResponse = await bookingsApi.createBooking({
         providerId: draft.provider.id,
         serviceId: draft.service.id,
         duration: draft.duration,
-        scheduledDate: draft.scheduledDate,
-        scheduledTime: draft.scheduledTime,
-        address: draft.addressText || draft.address?.address || '',
+        scheduledAt,
+        addressText: draft.addressText || draft.address?.address || '',
         latitude: draft.latitude || draft.address?.latitude || 14.5995,
         longitude: draft.longitude || draft.address?.longitude || 120.9842,
-        notes: draft.addressNotes || notes.trim() || undefined,
-      });
+        customerNotes: draft.addressNotes || notes.trim() || undefined,
+        paymentMethod: draft.paymentMethod,
+      } as any);
 
       const booking = bookingResponse.data.data;
 
