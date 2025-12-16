@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
   TextInput,
   ActivityIndicator,
   Alert,
@@ -25,11 +24,9 @@ export function AddressSelectionStep() {
   const {draft, setDraft, nextStep, prevStep} = useBookingStore();
   const {latitude, longitude} = useLocationStore();
 
-  const [showAddForm, setShowAddForm] = useState(false);
   const [newAddress, setNewAddress] = useState({
-    label: '',
-    address: '',
-    notes: '',
+    location: '',
+    details: '',
   });
 
   const {data: addresses, isLoading} = useQuery({
@@ -48,8 +45,7 @@ export function AddressSelectionStep() {
     onSuccess: newAddr => {
       queryClient.invalidateQueries({queryKey: ['addresses']});
       setDraft({address: newAddr});
-      setShowAddForm(false);
-      setNewAddress({label: '', address: '', notes: ''});
+      setNewAddress({location: '', details: ''});
     },
     onError: () => {
       Alert.alert('Error', 'Failed to add address. Please try again.');
@@ -61,15 +57,15 @@ export function AddressSelectionStep() {
   };
 
   const handleAddAddress = () => {
-    if (!newAddress.label.trim() || !newAddress.address.trim()) {
-      Alert.alert('Error', 'Please fill in the label and address');
+    if (!newAddress.location.trim()) {
+      Alert.alert('Error', 'Please enter the location');
       return;
     }
 
     addAddressMutation.mutate({
-      label: newAddress.label.trim(),
-      address: newAddress.address.trim(),
-      notes: newAddress.notes.trim() || undefined,
+      label: newAddress.location.trim(),
+      address: newAddress.location.trim(),
+      notes: newAddress.details.trim() || undefined,
       latitude: latitude || 14.5995, // Default to Manila if no location
       longitude: longitude || 120.9842,
       isDefault: !addresses || addresses.length === 0,
@@ -82,10 +78,11 @@ export function AddressSelectionStep() {
     <View style={styles.container}>
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.sectionTitle}>Select Address</Text>
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled">
+        <Text style={styles.sectionTitle}>Where should we come?</Text>
         <Text style={styles.sectionSubtitle}>
-          Choose where you'd like the service
+          Enter your hotel, condo, or home location
         </Text>
 
         {isLoading ? (
@@ -95,100 +92,61 @@ export function AddressSelectionStep() {
         ) : (
           <>
             {/* Saved Addresses */}
-            {addresses?.map(address => (
-              <AddressCard
-                key={address.id}
-                address={address}
-                selected={draft.address?.id === address.id}
-                onSelect={() => handleAddressSelect(address)}
+            {addresses && addresses.length > 0 && (
+              <View style={styles.savedSection}>
+                <Text style={styles.savedTitle}>Recent Locations</Text>
+                {addresses.map(address => (
+                  <AddressCard
+                    key={address.id}
+                    address={address}
+                    selected={draft.address?.id === address.id}
+                    onSelect={() => handleAddressSelect(address)}
+                  />
+                ))}
+              </View>
+            )}
+
+            {/* Add New Address - Always visible */}
+            <View style={styles.addForm}>
+              <View style={styles.formHeader}>
+                <Icon name="location" size={20} color={colors.primary} />
+                <Text style={styles.formTitle}>New Location</Text>
+              </View>
+
+              <TextInput
+                style={styles.input}
+                placeholder="Hotel/Building name (e.g., City of Dreams, Makati Shangri-La)"
+                placeholderTextColor={colors.textLight}
+                value={newAddress.location}
+                onChangeText={text =>
+                  setNewAddress({...newAddress, location: text})
+                }
               />
-            ))}
 
-            {addresses?.length === 0 && !showAddForm && (
-              <View style={styles.emptyContainer}>
-                <Icon
-                  name="location-outline"
-                  size={48}
-                  color={colors.textLight}
-                />
-                <Text style={styles.emptyText}>No saved addresses</Text>
-                <Text style={styles.emptySubtext}>
-                  Add an address to continue with your booking
-                </Text>
-              </View>
-            )}
+              <TextInput
+                style={[styles.input, styles.inputDetails]}
+                placeholder="Room number, registered name, landmarks (optional)"
+                placeholderTextColor={colors.textLight}
+                value={newAddress.details}
+                onChangeText={text =>
+                  setNewAddress({...newAddress, details: text})
+                }
+                multiline
+                numberOfLines={2}
+              />
 
-            {/* Add New Address */}
-            {!showAddForm ? (
-              <TouchableOpacity
-                style={styles.addButton}
-                onPress={() => setShowAddForm(true)}
-                activeOpacity={0.7}>
-                <Icon
-                  name="add-circle-outline"
-                  size={24}
-                  color={colors.primary}
-                />
-                <Text style={styles.addButtonText}>Add New Address</Text>
-              </TouchableOpacity>
-            ) : (
-              <View style={styles.addForm}>
-                <Text style={styles.formTitle}>New Address</Text>
+              <Text style={styles.hint}>
+                Provider will message you if they need more details
+              </Text>
 
-                <Text style={styles.inputLabel}>Label</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g., Home, Office, Hotel"
-                  placeholderTextColor={colors.textLight}
-                  value={newAddress.label}
-                  onChangeText={text =>
-                    setNewAddress({...newAddress, label: text})
-                  }
-                />
-
-                <Text style={styles.inputLabel}>Address</Text>
-                <TextInput
-                  style={[styles.input, styles.inputMultiline]}
-                  placeholder="Full address"
-                  placeholderTextColor={colors.textLight}
-                  value={newAddress.address}
-                  onChangeText={text =>
-                    setNewAddress({...newAddress, address: text})
-                  }
-                  multiline
-                  numberOfLines={2}
-                />
-
-                <Text style={styles.inputLabel}>Notes (optional)</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g., Gate code, unit number"
-                  placeholderTextColor={colors.textLight}
-                  value={newAddress.notes}
-                  onChangeText={text =>
-                    setNewAddress({...newAddress, notes: text})
-                  }
-                />
-
-                <View style={styles.formButtons}>
-                  <Button
-                    title="Cancel"
-                    variant="outline"
-                    onPress={() => {
-                      setShowAddForm(false);
-                      setNewAddress({label: '', address: '', notes: ''});
-                    }}
-                    style={styles.formButton}
-                  />
-                  <Button
-                    title="Save"
-                    onPress={handleAddAddress}
-                    loading={addAddressMutation.isPending}
-                    style={styles.formButton}
-                  />
-                </View>
-              </View>
-            )}
+              <Button
+                title="Use This Location"
+                onPress={handleAddAddress}
+                loading={addAddressMutation.isPending}
+                disabled={!newAddress.location.trim()}
+                style={styles.saveButton}
+              />
+            </View>
           </>
         )}
       </ScrollView>
@@ -238,55 +196,31 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     alignItems: 'center',
   },
-  emptyContainer: {
-    padding: spacing.xl,
-    alignItems: 'center',
+  savedSection: {
+    marginBottom: spacing.lg,
   },
-  emptyText: {
-    ...typography.body,
-    color: colors.textSecondary,
-    marginTop: spacing.md,
-  },
-  emptySubtext: {
+  savedTitle: {
     ...typography.bodySmall,
-    color: colors.textLight,
-    marginTop: spacing.xs,
-    textAlign: 'center',
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    borderStyle: 'dashed',
-    marginTop: spacing.md,
-    gap: spacing.sm,
-  },
-  addButtonText: {
-    ...typography.body,
-    color: colors.primary,
-    fontWeight: '500',
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
+    textTransform: 'uppercase',
   },
   addForm: {
     backgroundColor: colors.surface,
     padding: spacing.lg,
-    borderRadius: borderRadius.md,
-    marginTop: spacing.md,
+    borderRadius: borderRadius.lg,
+  },
+  formHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
   formTitle: {
     ...typography.body,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: spacing.md,
-  },
-  inputLabel: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    marginBottom: spacing.xs,
-    marginTop: spacing.md,
   },
   input: {
     backgroundColor: colors.card,
@@ -296,18 +230,20 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     ...typography.body,
     color: colors.text,
+    marginBottom: spacing.md,
   },
-  inputMultiline: {
-    minHeight: 80,
+  inputDetails: {
+    minHeight: 70,
     textAlignVertical: 'top',
   },
-  formButtons: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginTop: spacing.lg,
+  hint: {
+    ...typography.caption,
+    color: colors.textLight,
+    textAlign: 'center',
+    marginBottom: spacing.md,
   },
-  formButton: {
-    flex: 1,
+  saveButton: {
+    marginTop: spacing.xs,
   },
   footer: {
     padding: spacing.lg,
