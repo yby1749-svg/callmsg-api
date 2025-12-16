@@ -5,74 +5,39 @@ import {
   StyleSheet,
   ScrollView,
   TextInput,
-  ActivityIndicator,
-  Alert,
 } from 'react-native';
-import {useQuery, useMutation, useQueryClient} from '@tanstack/react-query';
 import Icon from 'react-native-vector-icons/Ionicons';
 
-import {userApi} from '@api';
 import {Button} from '@components';
-import {AddressCard} from '@components/common/AddressCard';
 import {colors, spacing, typography, borderRadius} from '@config/theme';
 import {useBookingStore} from '@store/bookingStore';
 import {useLocationStore} from '@store/locationStore';
-import type {Address} from '@types';
 
 export function AddressSelectionStep() {
-  const queryClient = useQueryClient();
   const {draft, setDraft, nextStep, prevStep} = useBookingStore();
   const {latitude, longitude} = useLocationStore();
 
-  const [newAddress, setNewAddress] = useState({
-    location: '',
-    details: '',
-  });
+  const [location, setLocation] = useState(draft.addressText || '');
+  const [details, setDetails] = useState(draft.addressNotes || '');
 
-  const {data: addresses, isLoading} = useQuery({
-    queryKey: ['addresses'],
-    queryFn: async () => {
-      const response = await userApi.getAddresses();
-      return response.data.data;
-    },
-  });
-
-  const addAddressMutation = useMutation({
-    mutationFn: async (data: Omit<Address, 'id' | 'userId' | 'createdAt'>) => {
-      const response = await userApi.addAddress(data);
-      return response.data.data;
-    },
-    onSuccess: newAddr => {
-      queryClient.invalidateQueries({queryKey: ['addresses']});
-      setDraft({address: newAddr});
-      setNewAddress({location: '', details: ''});
-    },
-    onError: () => {
-      Alert.alert('Error', 'Failed to add address. Please try again.');
-    },
-  });
-
-  const handleAddressSelect = (address: Address) => {
-    setDraft({address});
-  };
-
-  const handleAddAddress = () => {
-    if (!newAddress.location.trim()) {
-      Alert.alert('Error', 'Please enter the location');
+  // Use this location - no API call, just store locally
+  const handleUseLocation = () => {
+    if (!location.trim()) {
       return;
     }
 
-    addAddressMutation.mutate({
-      label: newAddress.location.trim(),
-      address: newAddress.location.trim(),
-      notes: newAddress.details.trim() || undefined,
-      latitude: latitude || 14.5995, // Default to Manila if no location
+    // Store directly in booking draft - no database needed
+    setDraft({
+      addressText: location.trim(),
+      addressNotes: details.trim() || undefined,
+      latitude: latitude || 14.5995,
       longitude: longitude || 120.9842,
-      isDefault: !addresses || addresses.length === 0,
     });
   };
 
-  const canContinue = !!draft.address;
+  // Check if we have a valid address (either from input or already in draft)
+  const hasAddress = !!draft.addressText || !!location.trim();
+  const canContinue = !!draft.addressText;
 
   return (
     <View style={styles.container}>
@@ -85,70 +50,47 @@ export function AddressSelectionStep() {
           Enter your hotel, condo, or home location
         </Text>
 
-        {isLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="small" color={colors.primary} />
+        {/* Location Form - Simple, no API needed */}
+        <View style={styles.addForm}>
+          <View style={styles.formHeader}>
+            <Icon name="location" size={20} color={colors.primary} />
+            <Text style={styles.formTitle}>Your Location</Text>
           </View>
-        ) : (
-          <>
-            {/* Saved Addresses */}
-            {addresses && addresses.length > 0 && (
-              <View style={styles.savedSection}>
-                <Text style={styles.savedTitle}>Recent Locations</Text>
-                {addresses.map(address => (
-                  <AddressCard
-                    key={address.id}
-                    address={address}
-                    selected={draft.address?.id === address.id}
-                    onSelect={() => handleAddressSelect(address)}
-                  />
-                ))}
-              </View>
-            )}
 
-            {/* Add New Address - Always visible */}
-            <View style={styles.addForm}>
-              <View style={styles.formHeader}>
-                <Icon name="location" size={20} color={colors.primary} />
-                <Text style={styles.formTitle}>New Location</Text>
-              </View>
+          <TextInput
+            style={styles.input}
+            placeholder="Hotel or building name"
+            placeholderTextColor={colors.textLight}
+            value={location}
+            onChangeText={setLocation}
+            onBlur={handleUseLocation}
+          />
 
-              <TextInput
-                style={styles.input}
-                placeholder="Hotel/Building name (e.g., City of Dreams, Makati Shangri-La)"
-                placeholderTextColor={colors.textLight}
-                value={newAddress.location}
-                onChangeText={text =>
-                  setNewAddress({...newAddress, location: text})
-                }
-              />
+          <TextInput
+            style={[styles.input, styles.inputDetails]}
+            placeholder="Room number, registered name (optional)"
+            placeholderTextColor={colors.textLight}
+            value={details}
+            onChangeText={text => {
+              setDetails(text);
+            }}
+            onBlur={handleUseLocation}
+            multiline
+            numberOfLines={2}
+          />
 
-              <TextInput
-                style={[styles.input, styles.inputDetails]}
-                placeholder="Room number, registered name, landmarks (optional)"
-                placeholderTextColor={colors.textLight}
-                value={newAddress.details}
-                onChangeText={text =>
-                  setNewAddress({...newAddress, details: text})
-                }
-                multiline
-                numberOfLines={2}
-              />
+          <Text style={styles.hint}>
+            Provider will message you if they need more details
+          </Text>
 
-              <Text style={styles.hint}>
-                Provider will message you if they need more details
-              </Text>
-
-              <Button
-                title="Use This Location"
-                onPress={handleAddAddress}
-                loading={addAddressMutation.isPending}
-                disabled={!newAddress.location.trim()}
-                style={styles.saveButton}
-              />
+          {/* Show confirmation when address is set */}
+          {draft.addressText && (
+            <View style={styles.confirmBadge}>
+              <Icon name="checkmark-circle" size={16} color={colors.success} />
+              <Text style={styles.confirmText}>Location saved</Text>
             </View>
-          </>
-        )}
+          )}
+        </View>
       </ScrollView>
 
       {/* Footer */}
@@ -162,8 +104,16 @@ export function AddressSelectionStep() {
           />
           <Button
             title="Continue"
-            onPress={nextStep}
-            disabled={!canContinue}
+            onPress={() => {
+              // Save before continuing if not already saved
+              if (location.trim() && !draft.addressText) {
+                handleUseLocation();
+              }
+              if (location.trim()) {
+                nextStep();
+              }
+            }}
+            disabled={!location.trim()}
             style={styles.continueButton}
           />
         </View>
@@ -191,20 +141,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: spacing.xs,
     marginBottom: spacing.lg,
-  },
-  loadingContainer: {
-    padding: spacing.xl,
-    alignItems: 'center',
-  },
-  savedSection: {
-    marginBottom: spacing.lg,
-  },
-  savedTitle: {
-    ...typography.bodySmall,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    marginBottom: spacing.sm,
-    textTransform: 'uppercase',
   },
   addForm: {
     backgroundColor: colors.surface,
@@ -240,10 +176,19 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textLight,
     textAlign: 'center',
-    marginBottom: spacing.md,
   },
-  saveButton: {
-    marginTop: spacing.xs,
+  confirmBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  confirmText: {
+    ...typography.bodySmall,
+    color: colors.success,
+    fontWeight: '500',
   },
   footer: {
     padding: spacing.lg,

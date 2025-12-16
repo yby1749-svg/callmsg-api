@@ -14,6 +14,12 @@ interface BookingDraft {
   duration?: 90 | 120;
   scheduledDate?: string;
   scheduledTime?: string;
+  // Simple address - just text, no database needed
+  addressText?: string;
+  addressNotes?: string;
+  latitude?: number;
+  longitude?: number;
+  // Legacy - for saved addresses (optional)
   address?: Address;
   notes?: string;
   paymentMethod?: PaymentMethodType;
@@ -81,13 +87,15 @@ export const useBookingStore = create<BookingState>((set, get) => ({
 
   getDraftAsRequest: () => {
     const {draft} = get();
+    // Check for required fields - use addressText or fallback to address object
+    const hasAddress = draft.addressText || draft.address;
     if (
       !draft.provider ||
       !draft.service ||
       !draft.duration ||
       !draft.scheduledDate ||
       !draft.scheduledTime ||
-      !draft.address
+      !hasAddress
     ) {
       return null;
     }
@@ -98,10 +106,11 @@ export const useBookingStore = create<BookingState>((set, get) => ({
       duration: draft.duration,
       scheduledDate: draft.scheduledDate,
       scheduledTime: draft.scheduledTime,
-      address: draft.address.address,
-      latitude: draft.address.latitude,
-      longitude: draft.address.longitude,
-      notes: draft.notes,
+      // Use addressText if available, otherwise fall back to saved address
+      address: draft.addressText || draft.address?.address || '',
+      latitude: draft.latitude || draft.address?.latitude || 14.5995,
+      longitude: draft.longitude || draft.address?.longitude || 120.9842,
+      notes: draft.addressNotes || draft.notes,
     };
   },
 

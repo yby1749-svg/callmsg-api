@@ -48,29 +48,30 @@ export function BookingSummaryStep() {
 
   const createBookingMutation = useMutation({
     mutationFn: async () => {
+      const hasAddress = draft.addressText || draft.address;
       if (
         !draft.provider ||
         !draft.service ||
         !draft.duration ||
         !draft.scheduledDate ||
         !draft.scheduledTime ||
-        !draft.address ||
+        !hasAddress ||
         !draft.paymentMethod
       ) {
         throw new Error('Missing booking information');
       }
 
-      // Create the booking
+      // Create the booking - use addressText if available
       const bookingResponse = await bookingsApi.createBooking({
         providerId: draft.provider.id,
         serviceId: draft.service.id,
         duration: draft.duration,
         scheduledDate: draft.scheduledDate,
         scheduledTime: draft.scheduledTime,
-        address: draft.address.address,
-        latitude: draft.address.latitude,
-        longitude: draft.address.longitude,
-        notes: notes.trim() || undefined,
+        address: draft.addressText || draft.address?.address || '',
+        latitude: draft.latitude || draft.address?.latitude || 14.5995,
+        longitude: draft.longitude || draft.address?.longitude || 120.9842,
+        notes: draft.addressNotes || notes.trim() || undefined,
       });
 
       const booking = bookingResponse.data.data;
@@ -150,7 +151,8 @@ export function BookingSummaryStep() {
     }
   };
 
-  if (!draft.provider || !draft.service || !draft.address || !draft.paymentMethod) {
+  const addressDisplay = draft.addressText || draft.address?.address;
+  if (!draft.provider || !draft.service || !addressDisplay || !draft.paymentMethod) {
     return (
       <View style={styles.centered}>
         <Text style={styles.errorText}>Missing booking information</Text>
@@ -208,8 +210,10 @@ export function BookingSummaryStep() {
             <Icon name="location-outline" size={20} color={colors.primary} />
             <Text style={styles.cardTitle}>Location</Text>
           </View>
-          <Text style={styles.cardValue}>{draft.address.label}</Text>
-          <Text style={styles.cardSubvalue}>{draft.address.address}</Text>
+          <Text style={styles.cardValue}>{addressDisplay}</Text>
+          {draft.addressNotes && (
+            <Text style={styles.cardSubvalue}>{draft.addressNotes}</Text>
+          )}
         </View>
 
         {/* Payment Method Card */}
