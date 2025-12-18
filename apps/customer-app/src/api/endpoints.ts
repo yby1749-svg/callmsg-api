@@ -112,10 +112,11 @@ export const bookingsApi = {
 
 // Payments
 export const paymentsApi = {
-  createIntent: (bookingId: string, method: string) =>
+  createIntent: (bookingId: string, amount: number, method?: string) =>
     apiClient.post<{data: PaymentIntent}>('/payments/intent', {
       bookingId,
-      method,
+      amount,
+      description: `MASASIA Booking Payment${method ? ` (${method})` : ''}`,
     }),
 
   attachPayment: (intentId: string, paymentMethodId: string) =>

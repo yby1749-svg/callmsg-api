@@ -125,7 +125,7 @@ export function EarningsScreen() {
                     {earning.booking?.service?.name || 'Service'}
                   </Text>
                   <Text style={styles.earningDate}>
-                    {format(new Date(earning.createdAt), 'MMM d, yyyy')}
+                    {earning.createdAt ? format(new Date(earning.createdAt), 'MMM d, yyyy') : 'N/A'}
                   </Text>
                 </View>
                 <View style={styles.earningAmounts}>

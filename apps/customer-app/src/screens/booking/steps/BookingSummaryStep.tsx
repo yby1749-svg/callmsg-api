@@ -89,6 +89,7 @@ export function BookingSummaryStep() {
       // For online payments, create payment intent
       const paymentResponse = await paymentsApi.createIntent(
         booking.id,
+        booking.totalAmount,
         draft.paymentMethod,
       );
 

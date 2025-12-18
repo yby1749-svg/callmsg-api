@@ -329,6 +329,56 @@ async function main() {
   console.log(`✅ Created test provider: ${providerUser.email}`);
 
   // =========================================================================
+  // TEST SHOP OWNER
+  // =========================================================================
+
+  const shopOwnerPassword = await bcrypt.hash('shopowner123!', 12);
+
+  const shopOwner = await prisma.user.upsert({
+    where: { email: 'shopowner@test.com' },
+    update: {},
+    create: {
+      email: 'shopowner@test.com',
+      phone: '+639000000004',
+      phoneVerified: true,
+      emailVerified: true,
+      passwordHash: shopOwnerPassword,
+      firstName: 'Shop',
+      lastName: 'Owner',
+      role: 'SHOP_OWNER',
+    },
+  });
+
+  const shop = await prisma.shop.upsert({
+    where: { ownerId: shopOwner.id },
+    update: {},
+    create: {
+      ownerId: shopOwner.id,
+      name: 'Serenity Spa Manila',
+      description: 'Premium massage services in Metro Manila. Our trained therapists provide relaxing and rejuvenating experiences.',
+      phone: '+639171234568',
+      email: 'serenity@masasia.com',
+      status: 'APPROVED',
+      bankName: 'BDO',
+      bankAccountNumber: '001234567890',
+      bankAccountName: 'Serenity Spa Manila',
+      gcashNumber: '09171234568',
+      balance: 15000,
+      totalEarnings: 45000,
+      approvedAt: new Date(),
+    },
+  });
+
+  // Link the test provider to this shop
+  await prisma.provider.update({
+    where: { id: provider.id },
+    data: { shopId: shop.id },
+  });
+
+  console.log(`✅ Created shop owner: ${shopOwner.email}`);
+  console.log(`✅ Created shop: ${shop.name} with provider: ${providerUser.email}`);
+
+  // =========================================================================
   // APP CONFIG
   // =========================================================================
 
@@ -396,9 +446,10 @@ async function main() {
 
   console.log('\n🎉 Seeding completed!');
   console.log('\n📋 Test Accounts:');
-  console.log('   Admin:    admin@masasia.com / admin123!');
-  console.log('   Customer: customer@test.com / customer123!');
-  console.log('   Provider: provider@test.com / provider123!');
+  console.log('   Admin:      admin@masasia.com / admin123!');
+  console.log('   Customer:   customer@test.com / customer123!');
+  console.log('   Provider:   provider@test.com / provider123!');
+  console.log('   Shop Owner: shopowner@test.com / shopowner123!');
 }
 
 main()
