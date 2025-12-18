@@ -75,7 +75,10 @@ export interface ShopEarning {
   id: string;
   bookingNumber: string;
   completedAt: string;
+  serviceAmount: number;
+  platformFee: number;
   shopEarning: number;
+  providerEarning: number;
   provider: {
     displayName: string;
     user: {
@@ -96,8 +99,15 @@ export interface ShopEarningsSummary {
   balance: number;
   totalEarnings: number;
   todayEarnings: number;
+  weekEarnings: number;
   monthEarnings: number;
   pendingPayout: number;
+  // Breakdown info
+  shopPercentage: number;
+  platformPercentage: number;
+  therapistPercentage: number;
+  therapistCount: number;
+  shopName: string;
 }
 
 export interface ShopPayout {

@@ -44,11 +44,22 @@ class ProviderService {
   async listProviders(query: ProviderQuery) {
     const providers = await prisma.provider.findMany({
       where: { status: 'APPROVED' },
-      include: { user: { select: { firstName: true, lastName: true, avatarUrl: true, gender: true } } },
+      include: {
+        user: { select: { firstName: true, lastName: true, avatarUrl: true, gender: true } },
+        shop: { select: { id: true, name: true, status: true } },
+      },
       take: parseInt(query.limit || '20'),
       skip: ((parseInt(query.page || '1')) - 1) * (parseInt(query.limit || '20')),
     });
-    return { data: providers, pagination: { page: 1, limit: 20, total: providers.length } };
+
+    // Transform to include providerType
+    const data = providers.map(p => ({
+      ...p,
+      providerType: p.shopId && p.shop?.status === 'APPROVED' ? 'shop' : 'independent',
+      shopName: p.shop?.status === 'APPROVED' ? p.shop.name : null,
+    }));
+
+    return { data, pagination: { page: 1, limit: 20, total: providers.length } };
   }
 
   async getProviderDetail(providerId: string) {
@@ -57,10 +68,17 @@ class ProviderService {
       include: {
         user: { select: { firstName: true, lastName: true, avatarUrl: true, gender: true } },
         services: { include: { service: true } },
+        shop: { select: { id: true, name: true, status: true } },
       },
     });
     if (!provider) throw new AppError('Provider not found', 404);
-    return provider;
+
+    // Add providerType info
+    return {
+      ...provider,
+      providerType: provider.shopId && provider.shop?.status === 'APPROVED' ? 'shop' : 'independent',
+      shopName: provider.shop?.status === 'APPROVED' ? provider.shop.name : null,
+    };
   }
 
   async getProviderReviews(providerId: string, query: ProviderQuery) {

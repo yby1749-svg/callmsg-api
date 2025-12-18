@@ -50,6 +50,9 @@ export interface Provider {
     avatarUrl?: string;
     gender?: string;
   };
+  // Provider type info
+  providerType?: 'shop' | 'independent';
+  shopName?: string | null;
 }
 
 export interface ProviderDetail extends Provider {

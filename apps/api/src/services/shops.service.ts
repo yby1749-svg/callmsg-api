@@ -258,8 +258,20 @@ class ShopsService {
     const [bookings, total] = await Promise.all([
       prisma.booking.findMany({
         where: { shopId: shop.id, status: 'COMPLETED' },
-        include: {
-          provider: { include: { user: { select: { firstName: true, lastName: true } } } },
+        select: {
+          id: true,
+          bookingNumber: true,
+          completedAt: true,
+          serviceAmount: true,
+          platformFee: true,
+          shopEarning: true,
+          providerEarning: true,
+          provider: {
+            select: {
+              displayName: true,
+              user: { select: { firstName: true, lastName: true } }
+            }
+          },
           service: { select: { name: true } },
           customer: { select: { firstName: true, lastName: true } },
         },
@@ -270,8 +282,22 @@ class ShopsService {
       prisma.booking.count({ where: { shopId: shop.id, status: 'COMPLETED' } }),
     ]);
 
+    // Transform to include breakdown
+    const data = bookings.map(b => ({
+      id: b.id,
+      bookingNumber: b.bookingNumber,
+      completedAt: b.completedAt,
+      serviceAmount: b.serviceAmount,
+      platformFee: b.platformFee,
+      shopEarning: b.shopEarning || 0,
+      providerEarning: b.providerEarning,
+      provider: b.provider,
+      service: b.service,
+      customer: b.customer,
+    }));
+
     return {
-      data: bookings,
+      data,
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     };
   }
@@ -288,6 +314,14 @@ class ShopsService {
       _sum: { shopEarning: true },
     });
 
+    // Get this week's earnings
+    const weekStart = new Date(today);
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    const weekEarnings = await prisma.booking.aggregate({
+      where: { shopId: shop.id, status: 'COMPLETED', completedAt: { gte: weekStart } },
+      _sum: { shopEarning: true },
+    });
+
     // Get this month's earnings
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
     const monthEarnings = await prisma.booking.aggregate({
@@ -301,12 +335,22 @@ class ShopsService {
       _sum: { amount: true },
     });
 
+    // Get therapist count
+    const therapistCount = await prisma.provider.count({ where: { shopId: shop.id } });
+
     return {
       balance: shop.balance,
       totalEarnings: shop.totalEarnings,
       todayEarnings: todayEarnings._sum.shopEarning || 0,
+      weekEarnings: weekEarnings._sum.shopEarning || 0,
       monthEarnings: monthEarnings._sum.shopEarning || 0,
       pendingPayout: pendingPayout._sum.amount || 0,
+      // Earnings breakdown info
+      shopPercentage: 37,
+      platformPercentage: 8,
+      therapistPercentage: 55,
+      therapistCount,
+      shopName: shop.name,
     };
   }
 
