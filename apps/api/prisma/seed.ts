@@ -375,8 +375,143 @@ async function main() {
     data: { shopId: shop.id },
   });
 
+  // =========================================================================
+  // SHOP THERAPISTS (10 therapists with KPI data)
+  // =========================================================================
+
+  const therapistData = [
+    { firstName: 'Anna', lastName: 'Santos', rating: 4.9, bookings: 87, earnings: 78300, thisMonth: 12500 },
+    { firstName: 'Bella', lastName: 'Cruz', rating: 4.7, bookings: 65, earnings: 58500, thisMonth: 9800 },
+    { firstName: 'Carmen', lastName: 'Reyes', rating: 4.8, bookings: 72, earnings: 64800, thisMonth: 11200 },
+    { firstName: 'Diana', lastName: 'Garcia', rating: 4.6, bookings: 45, earnings: 40500, thisMonth: 7500 },
+    { firstName: 'Elena', lastName: 'Lopez', rating: 4.5, bookings: 38, earnings: 34200, thisMonth: 6200 },
+    { firstName: 'Faith', lastName: 'Mendoza', rating: 4.9, bookings: 92, earnings: 82800, thisMonth: 14500 },
+    { firstName: 'Grace', lastName: 'Torres', rating: 4.4, bookings: 28, earnings: 25200, thisMonth: 4800 },
+    { firstName: 'Hannah', lastName: 'Flores', rating: 4.7, bookings: 56, earnings: 50400, thisMonth: 8900 },
+    { firstName: 'Isabel', lastName: 'Rivera', rating: 4.8, bookings: 68, earnings: 61200, thisMonth: 10500 },
+    { firstName: 'Julia', lastName: 'Dela Cruz', rating: 4.3, bookings: 22, earnings: 19800, thisMonth: 3200 },
+  ];
+
+  const shopTherapists = [];
+
+  for (let i = 0; i < therapistData.length; i++) {
+    const t = therapistData[i];
+    const email = `therapist${i + 1}@test.com`;
+    const phone = `+6390000001${i.toString().padStart(2, '0')}`;
+
+    const therapistUser = await prisma.user.upsert({
+      where: { email },
+      update: {},
+      create: {
+        email,
+        phone,
+        phoneVerified: true,
+        emailVerified: true,
+        passwordHash: shopOwnerPassword, // Same password for testing
+        firstName: t.firstName,
+        lastName: t.lastName,
+        role: 'PROVIDER',
+        gender: 'FEMALE',
+      },
+    });
+
+    const therapist = await prisma.provider.upsert({
+      where: { userId: therapistUser.id },
+      update: {},
+      create: {
+        userId: therapistUser.id,
+        shopId: shop.id,
+        displayName: `${t.firstName} ${t.lastName.charAt(0)}.`,
+        bio: `Professional massage therapist specializing in relaxation and therapeutic massage.`,
+        yearsOfExperience: Math.floor(Math.random() * 8) + 2,
+        status: 'APPROVED',
+        onlineStatus: i < 5 ? 'ONLINE' : 'OFFLINE',
+        rating: t.rating,
+        totalRatings: Math.floor(t.bookings * 0.7),
+        completedBookings: t.bookings,
+        serviceAreas: ['makati', 'bgc', 'pasay'],
+        maxTravelDistance: 10,
+        gcashNumber: `0917${Math.floor(1000000 + Math.random() * 9000000)}`,
+        approvedAt: new Date(),
+      },
+    });
+
+    // Add services for each therapist
+    await Promise.all([
+      prisma.providerService.upsert({
+        where: { providerId_serviceId: { providerId: therapist.id, serviceId: 'svc-thai' } },
+        update: {},
+        create: {
+          providerId: therapist.id,
+          serviceId: 'svc-thai',
+          price60: 800,
+          price90: 1100,
+          price120: 1400,
+        },
+      }),
+      prisma.providerService.upsert({
+        where: { providerId_serviceId: { providerId: therapist.id, serviceId: 'svc-swedish' } },
+        update: {},
+        create: {
+          providerId: therapist.id,
+          serviceId: 'svc-swedish',
+          price60: 1000,
+          price90: 1400,
+          price120: 1800,
+        },
+      }),
+    ]);
+
+    // Create completed bookings with earnings for KPI
+    const bookingsToCreate = Math.min(t.bookings, 10); // Create up to 10 sample bookings
+    for (let b = 0; b < bookingsToCreate; b++) {
+      const bookingDate = new Date();
+      bookingDate.setDate(bookingDate.getDate() - Math.floor(Math.random() * 30));
+
+      const amount = [800, 1000, 1100, 1200, 1400][Math.floor(Math.random() * 5)];
+      const platformFee = amount * 0.08; // 8% platform
+      const shopFee = amount * 0.37; // 37% shop
+      const providerAmount = amount * 0.55; // 55% provider
+
+      const bookingNumber = `CMM${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+      await prisma.booking.create({
+        data: {
+          bookingNumber,
+          customerId: customer.id,
+          providerId: therapist.id,
+          serviceId: ['svc-thai', 'svc-swedish'][Math.floor(Math.random() * 2)],
+          shopId: shop.id,
+          status: 'COMPLETED',
+          scheduledAt: bookingDate,
+          duration: [60, 90, 120][Math.floor(Math.random() * 3)],
+          serviceAmount: amount,
+          totalAmount: amount,
+          platformFee,
+          providerEarning: providerAmount,
+          shopEarning: shopFee,
+          addressText: 'Gramercy Residences, Makati',
+          latitude: 14.5586,
+          longitude: 121.0178,
+          completedAt: bookingDate,
+        },
+      });
+    }
+
+    shopTherapists.push(therapist);
+  }
+
+  // Update shop totals
+  await prisma.shop.update({
+    where: { id: shop.id },
+    data: {
+      balance: 45000,
+      totalEarnings: 185000,
+    },
+  });
+
+  console.log(`✅ Created ${shopTherapists.length} shop therapists with KPI data`);
   console.log(`✅ Created shop owner: ${shopOwner.email}`);
-  console.log(`✅ Created shop: ${shop.name} with provider: ${providerUser.email}`);
+  console.log(`✅ Created shop: ${shop.name}`);
 
   // =========================================================================
   // APP CONFIG
