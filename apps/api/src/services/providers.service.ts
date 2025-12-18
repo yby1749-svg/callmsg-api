@@ -160,19 +160,90 @@ class ProviderService {
   }
 
   async getEarnings(userId: string, _query: ProviderQuery) {
-    const provider = await prisma.provider.findUnique({ where: { userId } });
-    if (!provider) throw new AppError('Provider not found', 404);
-    return prisma.booking.findMany({
-      where: { providerId: provider.id, status: 'COMPLETED' },
-      select: { id: true, completedAt: true, providerEarning: true, service: { select: { name: true } } },
-      orderBy: { completedAt: 'desc' },
+    const provider = await prisma.provider.findUnique({
+      where: { userId },
+      include: { shop: true },
     });
+    if (!provider) throw new AppError('Provider not found', 404);
+
+    const bookings = await prisma.booking.findMany({
+      where: { providerId: provider.id, status: 'COMPLETED' },
+      select: {
+        id: true,
+        completedAt: true,
+        serviceAmount: true,
+        platformFee: true,
+        providerEarning: true,
+        shopEarning: true,
+        service: { select: { name: true } }
+      },
+      orderBy: { completedAt: 'desc' },
+      take: 50,
+    });
+
+    // Transform to include earnings breakdown
+    return bookings.map(b => ({
+      id: b.id,
+      createdAt: b.completedAt,
+      amount: b.serviceAmount,
+      platformFee: b.platformFee,
+      shopFee: b.shopEarning || 0,
+      netAmount: b.providerEarning,
+      booking: { service: b.service },
+    }));
   }
 
   async getEarningsSummary(userId: string) {
-    const provider = await prisma.provider.findUnique({ where: { userId } });
+    const provider = await prisma.provider.findUnique({
+      where: { userId },
+      include: { shop: true },
+    });
     if (!provider) throw new AppError('Provider not found', 404);
-    return { balance: provider.balance, totalEarnings: provider.totalEarnings };
+
+    // Determine provider type and earnings percentage
+    const isShopAffiliated = provider.shopId && provider.shop?.status === 'APPROVED';
+    const providerType = isShopAffiliated ? 'shop' : 'independent';
+    const earningsPercentage = isShopAffiliated ? 55 : 92;
+
+    // Calculate period-based earnings
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfWeek = new Date(startOfToday);
+    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const completedBookings = await prisma.booking.findMany({
+      where: {
+        providerId: provider.id,
+        status: 'COMPLETED',
+        completedAt: { gte: startOfMonth },
+      },
+      select: { completedAt: true, providerEarning: true },
+    });
+
+    let today = 0, thisWeek = 0, thisMonth = 0;
+    for (const b of completedBookings) {
+      if (b.completedAt) {
+        thisMonth += b.providerEarning;
+        if (b.completedAt >= startOfWeek) thisWeek += b.providerEarning;
+        if (b.completedAt >= startOfToday) today += b.providerEarning;
+      }
+    }
+
+    return {
+      availableBalance: provider.balance,
+      pendingBalance: 0, // TODO: Calculate from pending payouts
+      totalEarned: provider.totalEarnings,
+      today,
+      thisWeek,
+      thisMonth,
+      // New fields for earnings breakdown
+      providerType,
+      earningsPercentage,
+      platformPercentage: 8,
+      shopPercentage: isShopAffiliated ? 37 : 0,
+      shopName: provider.shop?.name || null,
+    };
   }
 
   async getPayouts(userId: string) {

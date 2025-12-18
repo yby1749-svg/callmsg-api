@@ -118,13 +118,18 @@ export type PaymentMethod = 'card' | 'gcash' | 'paymaya';
 // Earnings Types
 export interface Earning {
   id: string;
-  providerId: string;
-  bookingId: string;
+  providerId?: string;
+  bookingId?: string;
   amount: number;
-  commission: number;
+  platformFee?: number;
+  shopFee?: number;
   netAmount: number;
-  status: 'pending' | 'available' | 'paid_out';
-  booking?: Booking;
+  status?: 'pending' | 'available' | 'paid_out';
+  booking?: {
+    service?: {
+      name: string;
+    };
+  };
   createdAt: string;
 }
 
@@ -135,6 +140,12 @@ export interface EarningsSummary {
   pendingBalance: number;
   availableBalance: number;
   totalEarned: number;
+  // Provider type and earnings breakdown
+  providerType: 'shop' | 'independent';
+  earningsPercentage: number; // 55% for shop, 92% for independent
+  platformPercentage: number; // 8%
+  shopPercentage: number; // 37% for shop, 0% for independent
+  shopName?: string | null;
 }
 
 // Payout Types
