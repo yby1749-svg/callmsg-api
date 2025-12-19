@@ -119,12 +119,14 @@ export function JobDetailScreen() {
         await updateJobStatus(bookingId, nextStatus);
         refetch();
         // Navigate to NavigationScreen
-        if (booking?.address) {
+        const lat = booking?.latitude || booking?.address?.latitude;
+        const lng = booking?.longitude || booking?.address?.longitude;
+        if (lat && lng) {
           navigation.navigate('Navigation', {
             bookingId,
             destination: {
-              lat: booking.address.latitude,
-              lng: booking.address.longitude,
+              lat,
+              lng,
             },
           });
         }
@@ -150,15 +152,19 @@ export function JobDetailScreen() {
   };
 
   const openMaps = () => {
-    if (!booking?.address) {
+    // Use booking's direct lat/lng or fall back to address object
+    const lat = booking?.latitude || booking?.address?.latitude;
+    const lng = booking?.longitude || booking?.address?.longitude;
+
+    if (!lat || !lng) {
       return;
     }
     // Navigate to in-app navigation screen
     navigation.navigate('Navigation', {
       bookingId,
       destination: {
-        lat: booking.address.latitude,
-        lng: booking.address.longitude,
+        lat,
+        lng,
       },
     });
   };
@@ -279,14 +285,16 @@ export function JobDetailScreen() {
             <Icon name="location" size={20} color={colors.primary} />
             <View style={styles.addressDetails}>
               <Text style={styles.addressStreet}>
-                {booking.address?.street}
+                {booking.addressText || booking.address?.street}
               </Text>
-              <Text style={styles.addressCity}>
-                {booking.address?.city}, {booking.address?.province}
-              </Text>
-              {booking.address?.notes && (
+              {booking.address?.city && (
+                <Text style={styles.addressCity}>
+                  {booking.address?.city}, {booking.address?.province}
+                </Text>
+              )}
+              {(booking.addressNotes || booking.address?.notes) && (
                 <Text style={styles.addressNotes}>
-                  Note: {booking.address.notes}
+                  📍 {booking.addressNotes || booking.address?.notes}
                 </Text>
               )}
             </View>
