@@ -8,10 +8,16 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
+import {useNavigation} from '@react-navigation/native';
+import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {colors} from '@config/theme';
 import {useShopOwnerStore} from '@store/shopStore';
+import type {ShopDashboardStackParamList} from '@types';
+
+type NavigationProp = NativeStackNavigationProp<ShopDashboardStackParamList>;
 
 export function ShopDashboardScreen() {
+  const navigation = useNavigation<NavigationProp>();
   const {
     shop,
     earningsSummary,
@@ -143,7 +149,9 @@ export function ShopDashboardScreen() {
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Active Therapists</Text>
-            <Text style={styles.viewAll}>View All</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('TherapistMap')}>
+              <Text style={styles.viewAll}>View Map</Text>
+            </TouchableOpacity>
           </View>
           {therapists.length === 0 ? (
             <Text style={styles.emptyText}>

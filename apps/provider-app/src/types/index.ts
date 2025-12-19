@@ -276,6 +276,7 @@ export type ShopOwnerTabParamList = {
 
 export type ShopDashboardStackParamList = {
   ShopDashboard: undefined;
+  TherapistMap: undefined;
 };
 
 export type ShopTherapistsStackParamList = {

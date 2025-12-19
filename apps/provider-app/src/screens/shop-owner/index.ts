@@ -4,3 +4,4 @@ export {ShopEarningsScreen} from './ShopEarningsScreen';
 export {ShopPayoutRequestScreen} from './ShopPayoutRequestScreen';
 export {ShopProfileScreen} from './ShopProfileScreen';
 export {SendInvitationScreen} from './SendInvitationScreen';
+export {TherapistMapScreen} from './TherapistMapScreen';
