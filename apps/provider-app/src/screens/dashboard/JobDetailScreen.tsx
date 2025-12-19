@@ -25,7 +25,7 @@ type RouteProps = RouteProp<DashboardStackParamList, 'JobDetail'>;
 type NavigationProp = NativeStackNavigationProp<DashboardStackParamList, 'JobDetail'>;
 
 const STATUS_FLOW: BookingStatus[] = [
-  'CONFIRMED',
+  'ACCEPTED',
   'PROVIDER_EN_ROUTE',
   'PROVIDER_ARRIVED',
   'IN_PROGRESS',
@@ -214,7 +214,23 @@ export function JobDetailScreen() {
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.label}>Price</Text>
-            <Text style={[styles.value, styles.price]}>P{booking.price}</Text>
+            <Text style={[styles.value, styles.price]}>P{booking.totalAmount || booking.price}</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.label}>Payment</Text>
+            <View style={styles.paymentBadge}>
+              <Icon
+                name={booking.payment?.method === 'CASH' ? 'cash-outline' : 'card-outline'}
+                size={14}
+                color={booking.payment?.method === 'CASH' ? colors.success : colors.primary}
+              />
+              <Text style={[
+                styles.paymentText,
+                booking.payment?.method === 'CASH' ? styles.cashText : styles.cardText
+              ]}>
+                {booking.payment?.method || 'N/A'}
+              </Text>
+            </View>
           </View>
           {booking.notes && (
             <View style={styles.notesContainer}>
@@ -377,6 +393,25 @@ const styles = StyleSheet.create({
   price: {
     color: colors.success,
     fontWeight: '700',
+  },
+  paymentBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+  },
+  paymentText: {
+    ...typography.bodySmall,
+    fontWeight: '600',
+  },
+  cashText: {
+    color: colors.success,
+  },
+  cardText: {
+    color: colors.primary,
   },
   notesContainer: {
     marginTop: spacing.sm,
