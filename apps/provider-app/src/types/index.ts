@@ -99,13 +99,15 @@ export interface Booking {
 
 export type BookingStatus =
   | 'PENDING'
+  | 'ACCEPTED'
   | 'CONFIRMED'
   | 'PROVIDER_ASSIGNED'
   | 'PROVIDER_EN_ROUTE'
   | 'PROVIDER_ARRIVED'
   | 'IN_PROGRESS'
   | 'COMPLETED'
-  | 'CANCELLED';
+  | 'CANCELLED'
+  | 'REJECTED';
 
 // Payment Types
 export interface Payment {
@@ -120,7 +122,7 @@ export interface Payment {
 }
 
 export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
-export type PaymentMethod = 'card' | 'gcash' | 'paymaya';
+export type PaymentMethod = 'CARD' | 'GCASH' | 'PAYMAYA' | 'CASH';
 
 // Earnings Types
 export interface Earning {
