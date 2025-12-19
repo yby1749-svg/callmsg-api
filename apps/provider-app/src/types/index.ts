@@ -84,6 +84,7 @@ export interface Booking {
   serviceAmount?: number;
   travelFee?: number;
   addressText?: string;
+  addressNotes?: string;
   notes?: string;
   customer?: Customer;
   provider?: Provider;

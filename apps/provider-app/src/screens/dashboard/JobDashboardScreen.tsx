@@ -73,7 +73,7 @@ export function JobDashboardScreen() {
   };
 
   const renderPendingJob = (job: Booking) => (
-    <Card key={job.id} style={styles.jobCard}>
+    <Card key={job.id} style={styles.pendingJobCard}>
       {/* Tappable header to view details */}
       <TouchableOpacity
         onPress={() => navigation.navigate('JobDetail', {bookingId: job.id})}
@@ -105,7 +105,7 @@ export function JobDashboardScreen() {
             <Icon name="time-outline" size={16} color={colors.textSecondary} />
             <Text style={styles.detailText}>{job.duration} minutes</Text>
           </View>
-          {/* Location with label (building/hotel name) */}
+          {/* Location details */}
           <View style={styles.detailRow}>
             <Icon
               name="location"
@@ -113,15 +113,12 @@ export function JobDashboardScreen() {
               color={colors.primary}
             />
             <View style={styles.locationInfo}>
-              {job.address?.label && (
-                <Text style={styles.locationLabel}>{job.address.label}</Text>
-              )}
               <Text style={styles.detailText} numberOfLines={2}>
-                {job.address?.street}, {job.address?.city}
+                {job.addressText || `${job.address?.street}, ${job.address?.city}`}
               </Text>
-              {job.address?.notes && (
-                <Text style={styles.locationNotes} numberOfLines={1}>
-                  {job.address.notes}
+              {(job.addressNotes || job.address?.notes) && (
+                <Text style={styles.locationNotes} numberOfLines={2}>
+                  📍 {job.addressNotes || job.address?.notes}
                 </Text>
               )}
             </View>
@@ -355,6 +352,12 @@ const styles = StyleSheet.create({
   },
   jobCard: {
     marginBottom: spacing.md,
+  },
+  pendingJobCard: {
+    marginBottom: spacing.md,
+    borderWidth: 2,
+    borderColor: colors.success,
+    borderRadius: borderRadius.lg,
   },
   activeJobCard: {
     borderLeftWidth: 4,
