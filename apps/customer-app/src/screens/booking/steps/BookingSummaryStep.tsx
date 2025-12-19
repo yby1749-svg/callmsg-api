@@ -24,6 +24,15 @@ import {
 } from '@config/theme';
 import {useBookingStore} from '@store/bookingStore';
 import type {HomeStackParamList} from '@navigation';
+import type {Booking, Payment} from '@types';
+
+// API response type for booking creation
+interface BookingCreateResponse {
+  booking?: Booking;
+  payment?: Payment;
+  id?: string;
+  [key: string]: unknown;
+}
 
 type NavigationProps = NativeStackNavigationProp<HomeStackParamList>;
 
@@ -79,8 +88,8 @@ export function BookingSummaryStep() {
         paymentMethod: draft.paymentMethod,
       } as any);
 
-      const result = bookingResponse.data.data;
-      const booking = result.booking || result; // Handle both {booking, payment} and direct booking response
+      const result = bookingResponse.data.data as unknown as BookingCreateResponse;
+      const booking = (result.booking || result) as Booking; // Handle both {booking, payment} and direct booking response
 
       // For cash payments, return booking directly
       if (isCashPayment) {

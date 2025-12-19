@@ -160,6 +160,7 @@ export interface Payment {
   status: PaymentStatus;
   paymongoIntentId?: string;
   paidAt?: string;
+  checkoutUrl?: string;
 }
 
 export interface PaymentIntent {

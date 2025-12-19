@@ -74,7 +74,7 @@ export function BookingDetailScreen() {
     mutationFn: async () => {
       if (!booking) throw new Error('No booking');
       const method: PaymentMethodType = (booking.payment?.method as PaymentMethodType) || 'CARD';
-      const response = await paymentsApi.createIntent(booking.id, method);
+      const response = await paymentsApi.createIntent(booking.id, booking.totalAmount, method);
       return response.data.data;
     },
     onSuccess: paymentIntent => {
