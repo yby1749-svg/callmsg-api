@@ -256,7 +256,10 @@ async function main() {
 
   const provider = await prisma.provider.upsert({
     where: { userId: providerUser.id },
-    update: {},
+    update: {
+      balance: 4600, // Available for payout (92% of completed bookings)
+      totalEarnings: 4600,
+    },
     create: {
       userId: providerUser.id,
       displayName: 'Maria S.',
@@ -271,6 +274,8 @@ async function main() {
       maxTravelDistance: 10,
       gcashNumber: '09171234567',
       approvedAt: new Date(),
+      balance: 4600, // Available for payout (92% of completed bookings)
+      totalEarnings: 4600,
     },
   });
 
