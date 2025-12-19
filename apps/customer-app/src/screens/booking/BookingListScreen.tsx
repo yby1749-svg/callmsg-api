@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import {useNavigation} from '@react-navigation/native';
+import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {useQuery, useMutation, useQueryClient} from '@tanstack/react-query';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -29,6 +29,8 @@ type NavigationProp = NativeStackNavigationProp<
   BookingsStackParamList,
   'BookingList'
 >;
+
+type RouteProps = RouteProp<BookingsStackParamList, 'BookingList'>;
 
 type TabType = 'active' | 'history';
 
@@ -72,8 +74,16 @@ const getStatusLabel = (status: string) => {
 
 export function BookingListScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const route = useRoute<RouteProps>();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabType>('active');
+
+  // Set tab from route params (e.g., after submitting review)
+  useEffect(() => {
+    if (route.params?.tab) {
+      setActiveTab(route.params.tab);
+    }
+  }, [route.params?.tab]);
 
   const {data, isLoading, refetch} = useQuery({
     queryKey: ['bookings'],

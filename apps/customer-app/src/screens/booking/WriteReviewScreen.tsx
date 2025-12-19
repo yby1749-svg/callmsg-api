@@ -63,7 +63,11 @@ export function WriteReviewScreen() {
       queryClient.invalidateQueries({queryKey: ['bookings']});
       queryClient.invalidateQueries({queryKey: ['provider', providerId]});
       showSuccess('Review Submitted', 'Thank you for your feedback!');
-      navigation.goBack();
+      // Navigate to BookingList and show History tab
+      navigation.reset({
+        index: 0,
+        routes: [{name: 'BookingList', params: {tab: 'history'}}],
+      });
     },
     onError: () => {
       showError(

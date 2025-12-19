@@ -37,7 +37,7 @@ export type HomeStackParamList = {
 };
 
 export type BookingsStackParamList = {
-  BookingList: undefined;
+  BookingList: {tab?: 'active' | 'history'} | undefined;
   BookingDetail: {bookingId: string};
   TrackProvider: {bookingId: string};
   WriteReview: {bookingId: string; providerId: string};
