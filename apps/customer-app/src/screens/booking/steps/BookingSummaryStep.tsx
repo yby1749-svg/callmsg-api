@@ -79,14 +79,24 @@ export function BookingSummaryStep() {
         paymentMethod: draft.paymentMethod,
       } as any);
 
-      const booking = bookingResponse.data.data;
+      const result = bookingResponse.data.data;
+      const booking = result.booking || result; // Handle both {booking, payment} and direct booking response
 
       // For cash payments, return booking directly
       if (isCashPayment) {
         return {booking, requiresOnlinePayment: false};
       }
 
-      // For online payments, create payment intent
+      // For online payments, use payment from response or create new intent
+      if (result.payment?.checkoutUrl) {
+        return {
+          booking,
+          paymentIntent: result.payment,
+          requiresOnlinePayment: true,
+        };
+      }
+
+      // Fallback: create payment intent
       const paymentResponse = await paymentsApi.createIntent(
         booking.id,
         booking.totalAmount,

@@ -92,8 +92,96 @@ class ProviderService {
   }
 
   async getProviderAvailability(providerId: string, date: string) {
-    // TODO: Implement availability logic
-    return { date, slots: [{ time: '09:00', available: true }, { time: '10:00', available: true }] };
+    const targetDate = new Date(date);
+    const dayOfWeek = targetDate.getDay();
+    const dateOnly = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+
+    // Check if provider exists
+    const provider = await prisma.provider.findUnique({ where: { id: providerId } });
+    if (!provider) throw new AppError('Provider not found', 404);
+
+    // Check if date is blocked
+    const blocked = await prisma.providerBlockedDate.findFirst({
+      where: { providerId, date: dateOnly },
+    });
+    if (blocked) {
+      return { date, slots: [], message: 'Provider is unavailable on this date' };
+    }
+
+    // Get provider's availability for this day of week
+    const availability = await prisma.providerAvailability.findFirst({
+      where: { providerId, dayOfWeek, isAvailable: true },
+    });
+
+    // Default working hours if no availability configured
+    const startTime = availability?.startTime || '09:00';
+    const endTime = availability?.endTime || '21:00';
+
+    // If provider has availability config but not available on this day
+    const hasAvailabilityConfig = await prisma.providerAvailability.count({
+      where: { providerId },
+    });
+    if (hasAvailabilityConfig > 0 && !availability) {
+      return { date, slots: [], message: 'Provider does not work on this day' };
+    }
+
+    // Get existing bookings for this provider on this date
+    const startOfDate = new Date(dateOnly);
+    const endOfDate = new Date(dateOnly);
+    endOfDate.setDate(endOfDate.getDate() + 1);
+
+    const existingBookings = await prisma.booking.findMany({
+      where: {
+        providerId,
+        status: { in: ['PENDING', 'ACCEPTED', 'PROVIDER_EN_ROUTE', 'PROVIDER_ARRIVED', 'IN_PROGRESS'] },
+        scheduledAt: {
+          gte: startOfDate,
+          lt: endOfDate,
+        },
+      },
+      select: { scheduledAt: true, duration: true },
+    });
+
+    // Generate time slots (every 30 minutes)
+    const slots: Array<{ time: string; available: boolean }> = [];
+    const [startHour, startMin] = startTime.split(':').map(Number);
+    const [endHour, endMin] = endTime.split(':').map(Number);
+
+    const startMinutes = startHour * 60 + startMin;
+    const endMinutes = endHour * 60 + endMin;
+
+    // Check if date is today - if so, only show future time slots
+    const now = new Date();
+    const isToday = dateOnly.toDateString() === now.toDateString();
+    const currentMinutes = isToday ? now.getHours() * 60 + now.getMinutes() + 60 : 0; // Add 1 hour buffer
+
+    for (let mins = startMinutes; mins < endMinutes; mins += 30) {
+      // Skip past times for today
+      if (mins < currentMinutes) continue;
+
+      const hour = Math.floor(mins / 60);
+      const minute = mins % 60;
+      const timeStr = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+
+      // Check if this time slot conflicts with any existing booking
+      const slotStart = new Date(dateOnly);
+      slotStart.setHours(hour, minute, 0, 0);
+
+      // Check for conflicts with existing bookings
+      // A slot is unavailable if a booking overlaps with it
+      const isBooked = existingBookings.some(booking => {
+        const bookingStart = new Date(booking.scheduledAt);
+        const bookingEnd = new Date(bookingStart.getTime() + booking.duration * 60 * 1000);
+        // Slot conflicts if: slot starts before booking ends AND slot ends after booking starts
+        // For simplicity: mark slot unavailable if it falls within or overlaps booking window
+        const slotEnd = new Date(slotStart.getTime() + 30 * 60 * 1000); // 30 min slot
+        return slotStart < bookingEnd && slotEnd > bookingStart;
+      });
+
+      slots.push({ time: timeStr, available: !isBooked });
+    }
+
+    return { date, slots };
   }
 
   async registerAsProvider(userId: string, data: RegisterData) {

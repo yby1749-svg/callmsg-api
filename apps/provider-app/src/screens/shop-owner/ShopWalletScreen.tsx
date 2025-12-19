@@ -16,7 +16,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import {colors, spacing, typography} from '@config/theme';
 import {walletApi, type WalletBalance, type WalletTransaction} from '@api/wallet';
 
-type PaymentMethod = 'gcash' | 'paymaya' | 'card';
+type PaymentMethod = 'GCASH' | 'PAYMAYA' | 'CARD';
 
 export function ShopWalletScreen() {
   const [balance, setBalance] = useState<WalletBalance | null>(null);
@@ -24,7 +24,7 @@ export function ShopWalletScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [showTopUpModal, setShowTopUpModal] = useState(false);
   const [topUpAmount, setTopUpAmount] = useState('');
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>('gcash');
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>('GCASH');
   const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
@@ -56,18 +56,21 @@ export function ShopWalletScreen() {
 
     setIsProcessing(true);
     try {
-      await walletApi.topUpShop({
+      const topUpData = {
         amount,
-        method: selectedPaymentMethod,
+        paymentMethod: selectedPaymentMethod,
         paymentRef: `TOPUP-${Date.now()}`,
-      });
+      };
+      console.log('Sending top-up data:', JSON.stringify(topUpData));
+      await walletApi.topUpShop(topUpData);
 
       Alert.alert('Success', 'Wallet topped up successfully!');
       setShowTopUpModal(false);
       setTopUpAmount('');
       loadData();
-    } catch (error) {
-      Alert.alert('Error', 'Failed to top up wallet. Please try again.');
+    } catch (error: any) {
+      console.error('Top up error:', error.response?.data || error.message);
+      Alert.alert('Error', error.response?.data?.error || 'Failed to top up wallet. Please try again.');
     } finally {
       setIsProcessing(false);
     }
@@ -250,7 +253,7 @@ export function ShopWalletScreen() {
             {/* Payment Method */}
             <Text style={styles.inputLabel}>Payment Method</Text>
             <View style={styles.paymentMethods}>
-              {(['gcash', 'paymaya', 'card'] as PaymentMethod[]).map(method => (
+              {(['GCASH', 'PAYMAYA', 'CARD'] as PaymentMethod[]).map(method => (
                 <TouchableOpacity
                   key={method}
                   style={[
@@ -260,9 +263,9 @@ export function ShopWalletScreen() {
                   onPress={() => setSelectedPaymentMethod(method)}>
                   <Icon
                     name={
-                      method === 'card'
+                      method === 'CARD'
                         ? 'card'
-                        : method === 'gcash'
+                        : method === 'GCASH'
                         ? 'phone-portrait'
                         : 'wallet'
                     }
@@ -278,9 +281,9 @@ export function ShopWalletScreen() {
                       styles.paymentMethodText,
                       selectedPaymentMethod === method && styles.paymentMethodTextSelected,
                     ]}>
-                    {method === 'gcash'
+                    {method === 'GCASH'
                       ? 'GCash'
-                      : method === 'paymaya'
+                      : method === 'PAYMAYA'
                       ? 'PayMaya'
                       : 'Card'}
                   </Text>
