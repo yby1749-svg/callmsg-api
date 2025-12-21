@@ -16,6 +16,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import {format} from 'date-fns';
 
 import {chatApi, Message} from '@api';
+import {socketService} from '@services/socket';
 import {colors, typography, spacing, borderRadius} from '@config/theme';
 import type {BookingsStackParamList} from '@navigation';
 
@@ -36,16 +37,40 @@ export function ChatScreen() {
     });
   }, [navigation, providerName]);
 
+  // Join booking room for real-time messages
+  useEffect(() => {
+    socketService.joinBooking(bookingId);
+
+    // Listen for new messages
+    socketService.onChatMessage((newMessage) => {
+      if (newMessage.bookingId === bookingId) {
+        queryClient.setQueryData(['chat', bookingId], (old: Message[] | undefined) => {
+          if (!old) return [{ ...newMessage, isOwn: false }];
+          // Avoid duplicates
+          if (old.some(m => m.id === newMessage.id)) return old;
+          return [...old, { ...newMessage, isOwn: false }];
+        });
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({animated: true});
+        }, 100);
+      }
+    });
+
+    return () => {
+      socketService.leaveBooking(bookingId);
+      socketService.offChatMessage();
+    };
+  }, [bookingId, queryClient]);
+
   // Fetch messages
-  const {data: messages, isLoading, refetch} = useQuery({
+  const {data: messages, isLoading} = useQuery({
     queryKey: ['chat', bookingId],
     queryFn: async () => {
       const response = await chatApi.getMessages(bookingId);
       return response.data.data;
     },
-    refetchInterval: 3000, // Poll every 3 seconds
-    staleTime: 0, // Always consider data stale
-    refetchOnWindowFocus: true,
+    refetchInterval: 10000, // Poll every 10 seconds as fallback
+    staleTime: 5000,
   });
 
   // Send message mutation

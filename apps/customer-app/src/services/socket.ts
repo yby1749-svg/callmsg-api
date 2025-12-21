@@ -62,11 +62,11 @@ class SocketService {
   }
 
   joinBooking(bookingId: string): void {
-    this.socket?.emit('join:booking', bookingId);
+    this.socket?.emit('join:booking', {bookingId});
   }
 
   leaveBooking(bookingId: string): void {
-    this.socket?.emit('leave:booking', bookingId);
+    this.socket?.emit('leave:booking', {bookingId});
   }
 
   onProviderLocation(
@@ -92,6 +92,18 @@ class SocketService {
     this.socket?.on('notification', callback);
   }
 
+  onChatMessage(
+    callback: (data: {
+      id: string;
+      bookingId: string;
+      senderId: string;
+      content: string;
+      createdAt: string;
+    }) => void,
+  ): void {
+    this.socket?.on('chat:message', callback);
+  }
+
   offProviderLocation(): void {
     this.socket?.off('location:provider');
   }
@@ -102,6 +114,10 @@ class SocketService {
 
   offNotification(): void {
     this.socket?.off('notification');
+  }
+
+  offChatMessage(): void {
+    this.socket?.off('chat:message');
   }
 
   isConnected(): boolean {

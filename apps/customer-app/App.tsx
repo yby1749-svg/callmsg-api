@@ -10,6 +10,7 @@ import {toastConfig} from '@config/toast';
 import {useAuthStore} from '@store/authStore';
 import {useNotificationStore} from '@store/notificationStore';
 import {notificationsApi} from '@api';
+import {socketService} from '@services/socket';
 
 // Firebase push notifications - uncomment after configuring Firebase
 // import {
@@ -30,7 +31,36 @@ const queryClient = new QueryClient({
 
 function AppContent(): React.JSX.Element {
   const {isAuthenticated} = useAuthStore();
-  const {setNotifications} = useNotificationStore();
+  const {setNotifications, addNotification} = useNotificationStore();
+
+  // Connect to socket and listen for notifications when authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      // Connect to socket
+      socketService.connect();
+
+      // Listen for real-time notifications
+      socketService.onNotification((notification) => {
+        // Create a notification object from socket data
+        const notificationItem = {
+          id: notification.data?.id || `socket-${Date.now()}`,
+          type: notification.type,
+          title: notification.title,
+          body: notification.body,
+          data: notification.data,
+          isRead: false,
+          createdAt: new Date().toISOString(),
+        };
+        addNotification(notificationItem);
+      });
+    }
+
+    return () => {
+      if (isAuthenticated) {
+        socketService.offNotification();
+      }
+    };
+  }, [isAuthenticated, addNotification]);
 
   // Fetch notifications when authenticated
   useEffect(() => {

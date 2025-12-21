@@ -141,5 +141,23 @@ export const socketService = {
     socketService.emit('leave:booking', {bookingId});
   },
 
+  // Listen for chat messages
+  onChatMessage: (
+    callback: (data: {
+      id: string;
+      bookingId: string;
+      senderId: string;
+      content: string;
+      createdAt: string;
+    }) => void,
+  ) => {
+    socket?.on('chat:message', callback);
+  },
+
+  // Stop listening for chat messages
+  offChatMessage: () => {
+    socket?.off('chat:message');
+  },
+
   isConnected: () => socket?.connected ?? false,
 };

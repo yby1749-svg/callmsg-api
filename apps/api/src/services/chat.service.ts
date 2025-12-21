@@ -1,5 +1,7 @@
 import { prisma } from '../config/database.js';
 import { sendPushToUser } from '../utils/push.js';
+import { sendChatMessage, sendNotificationToUser } from '../socket/index.js';
+import { notificationService } from './notifications.service.js';
 
 export const chatService = {
   async getMessages(bookingId: string, userId: string) {
@@ -72,6 +74,15 @@ export const chatService = {
       },
     });
 
+    // Emit socket event for real-time update
+    sendChatMessage(bookingId, {
+      id: message.id,
+      bookingId: message.bookingId,
+      senderId: message.senderId,
+      content: message.content,
+      createdAt: message.createdAt.toISOString(),
+    });
+
     // Send push notification to other party
     const recipientId = isCustomer ? booking.provider?.userId : booking.customerId;
     const senderName = isCustomer
@@ -79,10 +90,32 @@ export const chatService = {
       : (booking.provider?.displayName || 'Therapist');
 
     if (recipientId) {
+      const notificationTitle = `New message from ${senderName}`;
+      const notificationBody = content.length > 100 ? content.substring(0, 97) + '...' : content;
+
+      // Create notification record in database (so it appears in Inbox)
+      notificationService.createNotification(
+        recipientId,
+        'SYSTEM', // Using SYSTEM type for chat messages
+        notificationTitle,
+        notificationBody,
+        { type: 'chat_message', bookingId, senderId }
+      ).then((notification) => {
+        // Emit socket notification for real-time bell badge update
+        sendNotificationToUser(recipientId, {
+          type: 'SYSTEM',
+          title: notificationTitle,
+          body: notificationBody,
+          data: { id: notification.id, bookingId, senderId, type: 'chat_message' },
+        });
+      }).catch((error) => {
+        console.error('[Chat] Failed to create notification:', error);
+      });
+
       // Send push notification asynchronously (don't await to not slow down response)
       sendPushToUser(recipientId, {
-        title: `New message from ${senderName}`,
-        body: content.length > 100 ? content.substring(0, 97) + '...' : content,
+        title: notificationTitle,
+        body: notificationBody,
         data: {
           type: 'chat_message',
           bookingId,

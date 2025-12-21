@@ -218,6 +218,19 @@ export function notifyBookingCancelled(bookingId: string, reason?: string) {
   }
 }
 
+// Send chat message to booking room
+export function sendChatMessage(bookingId: string, message: {
+  id: string;
+  bookingId: string;
+  senderId: string;
+  content: string;
+  createdAt: string;
+}) {
+  if (io) {
+    io.to(`booking:${bookingId}`).emit('chat:message', message);
+  }
+}
+
 export function getIO(): Server {
   if (!io) {
     throw new Error('Socket.IO not initialized');
