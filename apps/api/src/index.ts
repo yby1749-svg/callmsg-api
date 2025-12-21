@@ -8,6 +8,7 @@ import app from './app.js';
 import { initializeSocket } from './socket/index.js';
 import { prisma } from './config/database.js';
 import { redis } from './config/redis.js';
+import { startScheduler, stopScheduler } from './services/scheduler.service.js';
 
 const PORT = process.env.PORT || 3000;
 
@@ -49,12 +50,20 @@ async function main() {
 ║                                                           ║
 ╚═══════════════════════════════════════════════════════════╝
     `);
+
+    // Start booking reminder scheduler
+    startScheduler();
+    console.log('✅ Booking reminder scheduler started');
   });
 
   // Graceful shutdown
   const shutdown = async () => {
     console.log('\n🛑 Shutting down gracefully...');
-    
+
+    // Stop scheduler
+    stopScheduler();
+    console.log('✅ Scheduler stopped');
+
     server.close(() => {
       console.log('✅ HTTP server closed');
     });

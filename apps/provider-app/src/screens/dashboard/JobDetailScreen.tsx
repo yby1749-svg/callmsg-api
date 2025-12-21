@@ -68,12 +68,12 @@ export function JobDetailScreen() {
   const isRejected = booking?.status === 'REJECTED';
   const isActive = ['PROVIDER_EN_ROUTE', 'PROVIDER_ARRIVED', 'IN_PROGRESS'].includes(booking?.status || '');
 
-  // Check if it's time to start the job (within 30 min before scheduled time)
+  // Check if it's time to start the job (within 60 min before scheduled time)
   const isTimeToStart = () => {
     if (!booking?.scheduledAt) return false;
     const scheduledTime = new Date(booking.scheduledAt);
     const now = new Date();
-    const startWindow = subMinutes(scheduledTime, 30);
+    const startWindow = subMinutes(scheduledTime, 60); // Allow starting 1 hour before
     const endWindow = addMinutes(scheduledTime, booking.duration || 120);
     return isWithinInterval(now, {start: startWindow, end: endWindow});
   };

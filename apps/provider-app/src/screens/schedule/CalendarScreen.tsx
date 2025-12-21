@@ -12,7 +12,7 @@ import {useNavigation} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {useQuery, useMutation, useQueryClient} from '@tanstack/react-query';
 import Icon from 'react-native-vector-icons/Ionicons';
-import {format, startOfWeek, addDays, addWeeks, subWeeks, isSameDay, isToday, isSameMonth} from 'date-fns';
+import {format, startOfWeek, addDays, addWeeks, subWeeks, isSameDay, isToday, isSameMonth, differenceInMinutes} from 'date-fns';
 
 import {Card} from '@components';
 import {bookingsApi, chatApi} from '@api';
@@ -82,6 +82,26 @@ const getStatusLabel = (status: string) => {
     case 'REJECTED': return 'Rejected';
     default: return status.replace(/_/g, ' ');
   }
+};
+
+// Check if booking is starting within the next hour
+const isStartingSoon = (scheduledAt: string, status: string) => {
+  // Only show "starting soon" for accepted/confirmed bookings
+  if (!['ACCEPTED', 'CONFIRMED'].includes(status)) return false;
+
+  const now = new Date();
+  const scheduledTime = new Date(scheduledAt);
+  const minutesUntilStart = differenceInMinutes(scheduledTime, now);
+
+  // Starting within 60 minutes and not already past
+  return minutesUntilStart >= 0 && minutesUntilStart <= 60;
+};
+
+// Get minutes until booking starts
+const getMinutesUntilStart = (scheduledAt: string) => {
+  const now = new Date();
+  const scheduledTime = new Date(scheduledAt);
+  return differenceInMinutes(scheduledTime, now);
 };
 
 export function CalendarScreen() {
@@ -278,6 +298,8 @@ export function CalendarScreen() {
         ) : (
           selectedDayBookings.map((booking: Booking) => {
             const isCompleted = booking.status === 'COMPLETED';
+            const startingSoon = isStartingSoon(booking.scheduledAt, booking.status);
+            const minutesLeft = getMinutesUntilStart(booking.scheduledAt);
             return (
               <TouchableOpacity
                 key={booking.id}
@@ -291,9 +313,14 @@ export function CalendarScreen() {
                 <Card style={[
                   styles.bookingCard,
                   isCompleted && styles.completedCard,
+                  startingSoon && styles.startingSoonCard,
                 ]}>
                   <View style={styles.timeContainer}>
-                    <Text style={[styles.time, isCompleted && styles.completedTime]}>
+                    <Text style={[
+                      styles.time,
+                      isCompleted && styles.completedTime,
+                      startingSoon && styles.startingSoonTime,
+                    ]}>
                       {format(new Date(booking.scheduledAt), 'h:mm a')}
                     </Text>
                     <View style={styles.durationBadge}>
@@ -304,7 +331,31 @@ export function CalendarScreen() {
                         <Icon name="checkmark-circle" size={20} color={colors.success} />
                       </View>
                     )}
+                    {startingSoon && (
+                      <View style={styles.startingSoonIcon}>
+                        <Icon name="alarm" size={20} color="#F57C00" />
+                      </View>
+                    )}
                   </View>
+                  {startingSoon && (
+                    <View style={styles.startingSoonBanner}>
+                      <Icon name="time" size={16} color="#F57C00" />
+                      <Text style={styles.startingSoonText}>
+                        {minutesLeft <= 0 ? 'Starting now!' : `Starts in ${minutesLeft} min`}
+                      </Text>
+                      <TouchableOpacity
+                        style={styles.startButton}
+                        onPress={() => {
+                          navigation.getParent()?.navigate('DashboardTab', {
+                            screen: 'JobDetail',
+                            params: {bookingId: booking.id},
+                          });
+                        }}>
+                        <Text style={styles.startButtonText}>Start</Text>
+                        <Icon name="arrow-forward" size={14} color="#fff" />
+                      </TouchableOpacity>
+                    </View>
+                  )}
                   <View style={styles.bookingInfo}>
                     <Text style={styles.serviceName}>{booking.service?.name}</Text>
                     <View style={styles.customerRow}>
@@ -594,6 +645,47 @@ const styles = StyleSheet.create({
   },
   completedIcon: {
     marginLeft: 'auto',
+  },
+  startingSoonCard: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#F57C00',
+    backgroundColor: '#FFF3E0',
+  },
+  startingSoonTime: {
+    color: '#F57C00',
+  },
+  startingSoonIcon: {
+    marginLeft: 'auto',
+  },
+  startingSoonBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFE0B2',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.sm,
+    marginBottom: spacing.sm,
+    gap: spacing.xs,
+  },
+  startingSoonText: {
+    ...typography.bodySmall,
+    color: '#E65100',
+    fontWeight: '600',
+    flex: 1,
+  },
+  startButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F57C00',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+    gap: 4,
+  },
+  startButtonText: {
+    ...typography.caption,
+    color: '#fff',
+    fontWeight: '700',
   },
   timeContainer: {
     flexDirection: 'row',
