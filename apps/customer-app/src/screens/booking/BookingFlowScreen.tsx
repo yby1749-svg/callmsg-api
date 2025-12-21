@@ -70,12 +70,8 @@ export function BookingFlowScreen() {
 
         setDraft({
           provider,
-          service: selectedService?.service || {id: serviceId, name: serviceName},
-          providerService: selectedService || {
-            serviceId,
-            price90: price90 || 0,
-            price120: price120 || null,
-          },
+          service: selectedService?.service,
+          providerService: selectedService,
           // Don't set duration - let user choose 90m or 120m
         });
 

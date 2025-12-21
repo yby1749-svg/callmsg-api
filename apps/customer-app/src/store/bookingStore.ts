@@ -87,7 +87,7 @@ export const useBookingStore = create<BookingState>((set, get) => ({
 
   clearDraft: () => set({draft: {}, currentStep: 0}),
 
-  getDraftAsRequest: () => {
+  getDraftAsRequest: (): BookingRequest | null => {
     const {draft} = get();
     // Check for required fields - use addressText or fallback to address object
     const hasAddress = draft.addressText || draft.address;
@@ -97,22 +97,26 @@ export const useBookingStore = create<BookingState>((set, get) => ({
       !draft.duration ||
       !draft.scheduledDate ||
       !draft.scheduledTime ||
-      !hasAddress
+      !hasAddress ||
+      !draft.paymentMethod
     ) {
       return null;
     }
+
+    // Combine date and time into ISO string
+    const scheduledAt = `${draft.scheduledDate}T${draft.scheduledTime}:00`;
 
     return {
       providerId: draft.provider.id,
       serviceId: draft.service.id,
       duration: draft.duration,
-      scheduledDate: draft.scheduledDate,
-      scheduledTime: draft.scheduledTime,
+      scheduledAt,
       // Use addressText if available, otherwise fall back to saved address
-      address: draft.addressText || draft.address?.address || '',
+      addressText: draft.addressText || draft.address?.address || '',
       latitude: draft.latitude || draft.address?.latitude || 14.5995,
       longitude: draft.longitude || draft.address?.longitude || 120.9842,
-      notes: draft.addressNotes || draft.notes,
+      customerNotes: draft.addressNotes || draft.notes,
+      paymentMethod: draft.paymentMethod,
     };
   },
 

@@ -205,12 +205,14 @@ export interface WeeklySchedule {
 }
 
 // Notification Types
+export type NotificationType = 'booking' | 'payment' | 'payout' | 'system';
+
 export interface Notification {
   id: string;
   userId: string;
   title: string;
   body: string;
-  type: 'booking' | 'payment' | 'payout' | 'system';
+  type: string;
   data?: Record<string, unknown>;
   isRead: boolean;
   createdAt: string;
