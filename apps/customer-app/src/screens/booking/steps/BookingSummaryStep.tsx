@@ -247,10 +247,10 @@ export function BookingSummaryStep() {
             <Icon name="location-outline" size={20} color={colors.primary} />
             <Text style={styles.cardTitle}>Location</Text>
           </View>
-          <Text style={styles.cardValue}>
-            {addressDisplay}
-            {draft.addressNotes ? `  ${draft.addressNotes}` : ''}
-          </Text>
+          <Text style={styles.cardValue}>{addressDisplay}</Text>
+          {draft.addressNotes && (
+            <Text style={styles.cardSubvalue}>{draft.addressNotes}</Text>
+          )}
         </View>
 
         {/* Payment Method Card */}

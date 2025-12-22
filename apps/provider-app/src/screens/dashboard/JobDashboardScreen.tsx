@@ -155,13 +155,22 @@ export function JobDashboardScreen() {
               size={16}
               color={colors.primary}
             />
-            <View style={styles.locationInfo}>
-              <Text style={styles.detailText} numberOfLines={2}>
-                {job.addressText || `${job.address?.street}, ${job.address?.city}`}
-                {(job.addressNotes || job.address?.notes) ? `  ${job.addressNotes || job.address?.notes}` : ''}
+            <Text style={styles.detailText} numberOfLines={1}>
+              {job.addressText || `${job.address?.street}, ${job.address?.city}`}
+            </Text>
+          </View>
+          {(job.addressNotes || job.address?.notes) && (
+            <View style={styles.detailRow}>
+              <Icon
+                name="document-text-outline"
+                size={16}
+                color={colors.textSecondary}
+              />
+              <Text style={styles.detailText} numberOfLines={1}>
+                {job.addressNotes || job.address?.notes}
               </Text>
             </View>
-          </View>
+          )}
         </View>
         <Text style={styles.tapHint}>Tap for details & map</Text>
       </TouchableOpacity>
@@ -284,9 +293,16 @@ export function JobDashboardScreen() {
               <Icon name="location" size={16} color="#FFFFFF" />
               <Text style={styles.activeDetailText}>
                 {readyToStartJob.addressText || `${readyToStartJob.address?.street}, ${readyToStartJob.address?.city}`}
-                {(readyToStartJob.addressNotes || readyToStartJob.address?.notes) ? `  ${readyToStartJob.addressNotes || readyToStartJob.address?.notes}` : ''}
               </Text>
             </View>
+            {(readyToStartJob.addressNotes || readyToStartJob.address?.notes) && (
+              <View style={styles.activeDetailRow}>
+                <Icon name="document-text-outline" size={16} color="rgba(255,255,255,0.8)" />
+                <Text style={styles.activeDetailText}>
+                  {readyToStartJob.addressNotes || readyToStartJob.address?.notes}
+                </Text>
+              </View>
+            )}
             <View style={styles.readyActionRow}>
               <Icon name="car" size={20} color="#FFFFFF" />
               <Text style={styles.readyActionText}>Tap to start "On My Way"</Text>
@@ -351,9 +367,16 @@ export function JobDashboardScreen() {
               <Icon name="location" size={16} color={colors.textInverse} />
               <Text style={styles.activeDetailText}>
                 {activeJob.addressText || `${activeJob.address?.street}, ${activeJob.address?.city}`}
-                {(activeJob.addressNotes || activeJob.address?.notes) ? `  ${activeJob.addressNotes || activeJob.address?.notes}` : ''}
               </Text>
             </View>
+            {(activeJob.addressNotes || activeJob.address?.notes) && (
+              <View style={styles.activeDetailRow}>
+                <Icon name="document-text-outline" size={16} color="rgba(255,255,255,0.8)" />
+                <Text style={styles.activeDetailText}>
+                  {activeJob.addressNotes || activeJob.address?.notes}
+                </Text>
+              </View>
+            )}
           </LinearGradient>
         </TouchableOpacity>
       </View>
@@ -873,15 +896,6 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.textSecondary,
     flex: 1,
-  },
-  locationInfo: {
-    flex: 1,
-  },
-  locationNotes: {
-    ...typography.caption,
-    color: colors.primary,
-    fontStyle: 'italic',
-    marginTop: 2,
   },
   tapHint: {
     ...typography.caption,

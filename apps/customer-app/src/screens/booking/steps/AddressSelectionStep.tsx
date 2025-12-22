@@ -51,14 +51,14 @@ export function AddressSelectionStep() {
         </Text>
 
         {/* Location Form - Simple, no API needed */}
-        <View style={styles.addForm}>
-          <View style={styles.formHeader}>
-            <Icon name="location" size={20} color={colors.primary} />
-            <Text style={styles.formTitle}>Your Location</Text>
-          </View>
+        <View style={styles.formHeader}>
+          <Icon name="location" size={20} color={colors.primary} />
+          <Text style={styles.formTitle}>Your Location</Text>
+        </View>
 
+        <View style={styles.addForm}>
           <TextInput
-            style={styles.input}
+            style={styles.inputLocation}
             placeholder="Hotel or building name"
             placeholderTextColor={colors.textLight}
             value={location}
@@ -70,32 +70,26 @@ export function AddressSelectionStep() {
           />
 
           <TextInput
-            style={[styles.input, styles.inputDetails]}
-            placeholder="Room number, registered name (optional)"
+            style={styles.inputDetails}
+            placeholder="Room number and registered name"
             placeholderTextColor={colors.textLight}
             value={details}
             onChangeText={text => {
               setDetails(text);
             }}
             onBlur={handleUseLocation}
-            multiline
-            numberOfLines={2}
             autoCorrect={false}
             spellCheck={false}
           />
-
-          <Text style={styles.hint}>
-            Provider will message you if they need more details
-          </Text>
-
-          {/* Show confirmation when address is set */}
-          {draft.addressText && (
-            <View style={styles.confirmBadge}>
-              <Icon name="checkmark-circle" size={16} color={colors.success} />
-              <Text style={styles.confirmText}>Location saved</Text>
-            </View>
-          )}
         </View>
+
+        {/* Show confirmation when address is set */}
+        {draft.addressText && (
+          <View style={styles.confirmBadge}>
+            <Icon name="checkmark-circle" size={16} color={colors.success} />
+            <Text style={styles.confirmText}>Location saved</Text>
+          </View>
+        )}
       </ScrollView>
 
       {/* Footer */}
@@ -110,11 +104,14 @@ export function AddressSelectionStep() {
           <Button
             title="Continue"
             onPress={() => {
-              // Save before continuing if not already saved
-              if (location.trim() && !draft.addressText) {
-                handleUseLocation();
-              }
+              // Always save before continuing to capture both location and details
               if (location.trim()) {
+                setDraft({
+                  addressText: location.trim(),
+                  addressNotes: details.trim() || undefined,
+                  latitude: latitude || 14.5995,
+                  longitude: longitude || 120.9842,
+                });
                 nextStep();
               }
             }}
@@ -147,11 +144,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
     marginBottom: spacing.lg,
   },
-  addForm: {
-    backgroundColor: colors.surface,
-    padding: spacing.lg,
-    borderRadius: borderRadius.lg,
-  },
   formHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -163,24 +155,25 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
   },
-  input: {
+  addForm: {
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    ...typography.body,
+    borderRadius: borderRadius.lg,
+    overflow: 'hidden',
+  },
+  inputLocation: {
+    padding: spacing.lg,
+    ...typography.h3,
     color: colors.text,
-    marginBottom: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   inputDetails: {
-    minHeight: 70,
-    textAlignVertical: 'top',
-  },
-  hint: {
-    ...typography.caption,
-    color: colors.textLight,
-    textAlign: 'center',
+    padding: spacing.lg,
+    paddingTop: spacing.md,
+    ...typography.body,
+    color: colors.text,
   },
   confirmBadge: {
     flexDirection: 'row',

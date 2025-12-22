@@ -113,9 +113,10 @@ export const useBookingStore = create<BookingState>((set, get) => ({
       scheduledAt,
       // Use addressText if available, otherwise fall back to saved address
       addressText: draft.addressText || draft.address?.address || '',
+      addressNotes: draft.addressNotes,
       latitude: draft.latitude || draft.address?.latitude || 14.5995,
       longitude: draft.longitude || draft.address?.longitude || 120.9842,
-      customerNotes: draft.addressNotes || draft.notes,
+      customerNotes: draft.notes,
       paymentMethod: draft.paymentMethod,
     };
   },

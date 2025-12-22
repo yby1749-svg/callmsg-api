@@ -278,11 +278,18 @@ export function BookingDetailScreen() {
               size={20}
               color={colors.textSecondary}
             />
-            <Text style={styles.rowText}>
-              {booking.addressText}
-              {booking.addressNotes ? `  ${booking.addressNotes}` : ''}
-            </Text>
+            <Text style={styles.rowText}>{booking.addressText}</Text>
           </View>
+          {booking.addressNotes && (
+            <View style={styles.row}>
+              <Icon
+                name="document-text-outline"
+                size={20}
+                color={colors.textSecondary}
+              />
+              <Text style={styles.rowText}>{booking.addressNotes}</Text>
+            </View>
+          )}
         </View>
       </View>
 
