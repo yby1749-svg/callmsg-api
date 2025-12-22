@@ -378,7 +378,7 @@ class BookingService {
 
       if (provider.shopId && provider.shop?.status === 'APPROVED') {
         // Shop-affiliated therapist: deduct from shop wallet
-        await walletService.deductShopPlatformFee(provider.shopId, bookingId, serviceAmount);
+        await walletService.deductShopPlatformFee(provider.shopId, bookingId, serviceAmount, provider.displayName);
       } else {
         // Independent therapist: deduct from provider wallet
         await walletService.deductProviderPlatformFee(provider.id, bookingId, serviceAmount);

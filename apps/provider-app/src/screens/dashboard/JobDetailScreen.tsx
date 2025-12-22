@@ -88,12 +88,9 @@ export function JobDetailScreen() {
         text1: 'Booking Accepted!',
         text2: 'You can view it in your Schedule',
       });
-    } catch {
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: 'Failed to accept booking',
-      });
+    } catch (error: any) {
+      const errorMessage = error?.response?.data?.error || error?.response?.data?.message || 'Failed to accept booking';
+      Alert.alert('Cannot Accept Booking', errorMessage);
     }
   };
 

@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
@@ -73,22 +74,12 @@ export function NotificationsScreen() {
       }
     }
 
-    const bookingId = notification.data?.bookingId as string | undefined;
-    if (bookingId) {
-      // For message notifications, go directly to chat
-      if (notification.type === 'SYSTEM' || notification.title?.toLowerCase().includes('message')) {
-        (navigation as any).navigate('DashboardTab', {
-          screen: 'Chat',
-          params: {bookingId},
-        });
-      } else {
-        // For other notifications, go to job detail
-        (navigation as any).navigate('DashboardTab', {
-          screen: 'JobDetail',
-          params: {bookingId},
-        });
-      }
-    }
+    // Show full notification text
+    Alert.alert(
+      notification.title || 'Notification',
+      notification.body,
+      [{text: 'Close'}],
+    );
   };
 
   const getNotificationIcon = (type: string, title?: string) => {

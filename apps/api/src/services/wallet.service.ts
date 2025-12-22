@@ -167,7 +167,7 @@ export async function deductProviderPlatformFee(
 
   if (provider.balance < feeAmount) {
     throw new AppError(
-      `Insufficient wallet balance. Need ₱${feeAmount.toFixed(2)} but have ₱${provider.balance.toFixed(2)}. Please top up your wallet first.`,
+      `Unable to accept this cash booking. Your wallet needs to be topped up to cover the platform fee.`,
       400
     );
   }
@@ -352,13 +352,14 @@ export async function topUpShopWallet(
 export async function deductShopPlatformFee(
   shopId: string,
   bookingId: string,
-  serviceAmount: number
+  serviceAmount: number,
+  providerName?: string
 ): Promise<{ success: boolean; feeAmount: number; newBalance: number }> {
   const feeAmount = Math.round(serviceAmount * PLATFORM_FEE_PERCENTAGE * 100) / 100;
 
   const shop = await prisma.shop.findUnique({
     where: { id: shopId },
-    select: { balance: true },
+    select: { balance: true, ownerId: true, name: true },
   });
 
   if (!shop) {
@@ -366,8 +367,19 @@ export async function deductShopPlatformFee(
   }
 
   if (shop.balance < feeAmount) {
+    // Send notification to shop owner
+    await prisma.notification.create({
+      data: {
+        userId: shop.ownerId,
+        type: 'SYSTEM',
+        title: 'Wallet Top-up Required',
+        body: `${providerName || 'A therapist'} couldn't accept a cash booking because your shop wallet has insufficient balance. Please top up to avoid missing bookings.`,
+        data: { shopId, bookingId },
+      },
+    });
+
     throw new AppError(
-      `Insufficient shop wallet balance. Need ₱${feeAmount.toFixed(2)} but have ₱${shop.balance.toFixed(2)}. Please top up the shop wallet first.`,
+      `Unable to accept this cash booking. Your shop wallet needs to be topped up. We've notified your shop owner.`,
       400
     );
   }
