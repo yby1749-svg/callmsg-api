@@ -69,36 +69,36 @@ export function ShopEarningsScreen() {
     }
   };
 
-  const renderEarning = ({item}: {item: ShopEarning}) => (
-    <View style={styles.itemCard}>
-      <View style={styles.itemMain}>
-        <Text style={styles.itemTitle}>{item.service?.name}</Text>
-        <Text style={styles.itemSubtitle}>
-          {item.provider?.displayName} • {item.customer?.firstName}{' '}
-          {item.customer?.lastName}
-        </Text>
-        <Text style={styles.itemDate}>
-          {new Date(item.completedAt).toLocaleString()}
-        </Text>
-        {/* Breakdown */}
-        <View style={styles.breakdownContainer}>
-          <Text style={styles.breakdownText}>
-            Service: {formatCurrency(item.serviceAmount)}
+  const renderEarning = ({item}: {item: ShopEarning}) => {
+    const totalEarning = item.shopEarning + item.providerEarning;
+    return (
+      <View style={styles.itemCard}>
+        <View style={styles.itemMain}>
+          <Text style={styles.itemTitle}>{item.service?.name}</Text>
+          <Text style={styles.itemSubtitle}>
+            {item.provider?.displayName} • {item.customer?.firstName}{' '}
+            {item.customer?.lastName}
           </Text>
-          <Text style={styles.breakdownText}>
-            Platform ({earningsSummary?.platformPercentage || 8}%): -{formatCurrency(item.platformFee)}
+          <Text style={styles.itemDate}>
+            {new Date(item.completedAt).toLocaleString()}
           </Text>
-          <Text style={styles.breakdownText}>
-            Therapist ({earningsSummary?.therapistPercentage || 55}%): -{formatCurrency(item.providerEarning)}
-          </Text>
+          {/* Breakdown */}
+          <View style={styles.breakdownContainer}>
+            <Text style={styles.breakdownText}>
+              Service: {formatCurrency(item.serviceAmount)}
+            </Text>
+            <Text style={styles.breakdownText}>
+              Platform ({earningsSummary?.platformPercentage || 8}%): -{formatCurrency(item.platformFee)}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.itemRight}>
+          <Text style={styles.itemAmount}>{formatCurrency(totalEarning)}</Text>
+          <Text style={styles.itemPercentage}>({100 - (earningsSummary?.platformPercentage || 8)}%)</Text>
         </View>
       </View>
-      <View style={styles.itemRight}>
-        <Text style={styles.itemAmount}>{formatCurrency(item.shopEarning)}</Text>
-        <Text style={styles.itemPercentage}>({earningsSummary?.shopPercentage || 37}%)</Text>
-      </View>
-    </View>
-  );
+    );
+  };
 
   const renderPayout = ({item}: {item: ShopPayout}) => (
     <View style={styles.itemCard}>
@@ -137,7 +137,7 @@ export function ShopEarningsScreen() {
           </Text>
           <View style={styles.percentageBadge}>
             <Text style={styles.percentageText}>
-              {earningsSummary?.shopPercentage || 37}%
+              {100 - (earningsSummary?.platformPercentage || 8)}%
             </Text>
           </View>
           <Icon name="information-circle-outline" size={16} color={colors.textSecondary} />
@@ -310,15 +310,9 @@ export function ShopEarningsScreen() {
                 </View>
                 <View style={[styles.splitItem, styles.splitItemHighlight]}>
                   <Text style={[styles.splitPercentage, styles.splitPercentageHighlight]}>
-                    {earningsSummary?.shopPercentage || 37}%
+                    {100 - (earningsSummary?.platformPercentage || 8)}%
                   </Text>
                   <Text style={[styles.splitLabel, styles.splitLabelHighlight]}>You</Text>
-                </View>
-                <View style={styles.splitItem}>
-                  <Text style={styles.splitPercentage}>
-                    {earningsSummary?.therapistPercentage || 55}%
-                  </Text>
-                  <Text style={styles.splitLabel}>Therapist</Text>
                 </View>
               </View>
             </View>
@@ -331,17 +325,14 @@ export function ShopEarningsScreen() {
                   -₱{(1000 * (earningsSummary?.platformPercentage || 8) / 100).toFixed(0)}
                 </Text>
               </View>
-              <View style={styles.exampleRow}>
-                <Text style={styles.exampleText}>Therapist:</Text>
-                <Text style={styles.exampleAmount}>
-                  -₱{(1000 * (earningsSummary?.therapistPercentage || 55) / 100).toFixed(0)}
-                </Text>
-              </View>
               <View style={[styles.exampleRow, styles.exampleRowTotal]}>
                 <Text style={styles.exampleTextTotal}>Your Earnings:</Text>
                 <Text style={styles.exampleAmountTotal}>
-                  ₱{(1000 * (earningsSummary?.shopPercentage || 37) / 100).toFixed(0)}
+                  ₱{(1000 * (100 - (earningsSummary?.platformPercentage || 8)) / 100).toFixed(0)}
                 </Text>
+              </View>
+              <View style={styles.exampleRow}>
+                <Text style={styles.exampleText}>(You pay therapist separately)</Text>
               </View>
             </View>
 
