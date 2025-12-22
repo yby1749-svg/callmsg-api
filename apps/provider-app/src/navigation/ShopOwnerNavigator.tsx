@@ -1,7 +1,7 @@
 import React from 'react';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
-import {View, Text, StyleSheet} from 'react-native';
+import Icon from 'react-native-vector-icons/Ionicons';
 import {colors} from '@config/theme';
 import type {
   ShopOwnerTabParamList,
@@ -30,23 +30,6 @@ const DashboardStack = createNativeStackNavigator<ShopDashboardStackParamList>()
 const TherapistsStack = createNativeStackNavigator<ShopTherapistsStackParamList>();
 const EarningsStack = createNativeStackNavigator<ShopEarningsStackParamList>();
 const ProfileStack = createNativeStackNavigator<ShopProfileStackParamList>();
-
-// Tab Icons
-function TabIcon({name, focused}: {name: string; focused: boolean}) {
-  const icons: Record<string, string> = {
-    Dashboard: '📊',
-    Therapists: '👥',
-    Earnings: '💰',
-    Profile: '⚙️',
-  };
-  return (
-    <View style={styles.iconContainer}>
-      <Text style={[styles.icon, focused && styles.iconFocused]}>
-        {icons[name] || '•'}
-      </Text>
-    </View>
-  );
-}
 
 // Stack Navigators
 function ShopDashboardNavigator() {
@@ -156,56 +139,54 @@ function ShopProfileNavigator() {
 export function ShopOwnerTabNavigator() {
   return (
     <Tab.Navigator
-      screenOptions={{
+      screenOptions={({route}) => ({
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textSecondary,
-        tabBarStyle: {
-          backgroundColor: colors.background,
-          borderTopColor: colors.border,
-          paddingTop: 8,
-          paddingBottom: 8,
-          height: 60,
+        tabBarInactiveTintColor: colors.textLight,
+        tabBarIcon: ({focused, color, size}) => {
+          let iconName: string;
+
+          switch (route.name) {
+            case 'ShopDashboardTab':
+              iconName = focused ? 'grid' : 'grid-outline';
+              break;
+            case 'ShopTherapistsTab':
+              iconName = focused ? 'people' : 'people-outline';
+              break;
+            case 'ShopEarningsTab':
+              iconName = focused ? 'cash' : 'cash-outline';
+              break;
+            case 'ShopProfileTab':
+              iconName = focused ? 'person' : 'person-outline';
+              break;
+            default:
+              iconName = 'ellipse';
+          }
+
+          return <Icon name={iconName} size={size} color={color} />;
         },
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '500',
-        },
-      }}>
+      })}>
       <Tab.Screen
         name="ShopDashboardTab"
         component={ShopDashboardNavigator}
-        options={{
-          tabBarLabel: 'Dashboard',
-          tabBarIcon: ({focused}) => <TabIcon name="Dashboard" focused={focused} />,
-        }}
+        options={{tabBarLabel: 'Dashboard'}}
       />
       <Tab.Screen
         name="ShopTherapistsTab"
         component={ShopTherapistsNavigator}
-        options={{
-          tabBarLabel: 'Therapists',
-          tabBarIcon: ({focused}) => <TabIcon name="Therapists" focused={focused} />,
-        }}
+        options={{tabBarLabel: 'Therapists'}}
       />
       <Tab.Screen
         name="ShopEarningsTab"
         component={ShopEarningsNavigator}
-        options={{
-          tabBarLabel: 'Earnings',
-          tabBarIcon: ({focused}) => <TabIcon name="Earnings" focused={focused} />,
-        }}
+        options={{tabBarLabel: 'Earnings'}}
       />
       <Tab.Screen
         name="ShopProfileTab"
         component={ShopProfileNavigator}
-        options={{
-          tabBarLabel: 'Profile',
-          tabBarIcon: ({focused}) => <TabIcon name="Profile" focused={focused} />,
-        }}
+        options={{tabBarLabel: 'Profile'}}
         listeners={({navigation}) => ({
           tabPress: () => {
-            // Reset the stack to ShopProfile when tab is pressed
             navigation.navigate('ShopProfileTab', {screen: 'ShopProfile'});
           },
         })}
@@ -213,17 +194,3 @@ export function ShopOwnerTabNavigator() {
     </Tab.Navigator>
   );
 }
-
-const styles = StyleSheet.create({
-  iconContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  icon: {
-    fontSize: 20,
-    opacity: 0.6,
-  },
-  iconFocused: {
-    opacity: 1,
-  },
-});

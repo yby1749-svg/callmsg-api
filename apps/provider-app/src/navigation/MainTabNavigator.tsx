@@ -70,8 +70,8 @@ export function MainTabNavigator() {
         component={DashboardNavigator}
         options={{
           tabBarLabel: 'Jobs',
-          tabBarIcon: ({color, size}) => (
-            <Icon name="briefcase-outline" size={size} color={color} />
+          tabBarIcon: ({focused, color, size}) => (
+            <Icon name={focused ? 'briefcase' : 'briefcase-outline'} size={size} color={color} />
           ),
         }}
       />
@@ -92,8 +92,8 @@ export function MainTabNavigator() {
           component={EarningsNavigator}
           options={{
             tabBarLabel: 'Earnings',
-            tabBarIcon: ({color, size}) => (
-              <Icon name="wallet-outline" size={size} color={color} />
+            tabBarIcon: ({focused, color, size}) => (
+              <Icon name={focused ? 'wallet' : 'wallet-outline'} size={size} color={color} />
             ),
           }}
         />
@@ -103,8 +103,8 @@ export function MainTabNavigator() {
         component={ProfileNavigator}
         options={{
           tabBarLabel: 'Profile',
-          tabBarIcon: ({color, size}) => (
-            <Icon name="person-outline" size={size} color={color} />
+          tabBarIcon: ({focused, color, size}) => (
+            <Icon name={focused ? 'person' : 'person-outline'} size={size} color={color} />
           ),
         }}
         listeners={({navigation}) => ({
