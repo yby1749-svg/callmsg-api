@@ -315,7 +315,7 @@ export type ShopEarningsStackParamList = {
 
 export type ShopProfileStackParamList = {
   ShopProfile: undefined;
-  ShopSettings: undefined;
-  ShopBankAccount: undefined;
+  EditShopProfile: undefined;
+  BankInformation: undefined;
   Notifications: undefined;
 };

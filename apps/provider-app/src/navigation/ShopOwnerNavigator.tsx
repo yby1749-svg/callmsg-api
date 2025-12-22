@@ -18,6 +18,8 @@ import {ShopEarningsScreen} from '../screens/shop-owner/ShopEarningsScreen';
 import {ShopPayoutRequestScreen} from '../screens/shop-owner/ShopPayoutRequestScreen';
 import {ShopWalletScreen} from '../screens/shop-owner/ShopWalletScreen';
 import {ShopProfileScreen} from '../screens/shop-owner/ShopProfileScreen';
+import {EditShopProfileScreen} from '../screens/shop-owner/EditShopProfileScreen';
+import {BankInformationScreen} from '../screens/shop-owner/BankInformationScreen';
 import {SendInvitationScreen} from '../screens/shop-owner/SendInvitationScreen';
 import {TherapistMapScreen} from '../screens/shop-owner/TherapistMapScreen';
 import {TherapistActivityScreen} from '../screens/shop-owner/TherapistActivityScreen';
@@ -130,7 +132,17 @@ function ShopProfileNavigator() {
       <ProfileStack.Screen
         name="ShopProfile"
         component={ShopProfileScreen}
-        options={{title: 'Shop Profile'}}
+        options={{title: 'Profile'}}
+      />
+      <ProfileStack.Screen
+        name="EditShopProfile"
+        component={EditShopProfileScreen}
+        options={{title: 'Edit Shop Profile'}}
+      />
+      <ProfileStack.Screen
+        name="BankInformation"
+        component={BankInformationScreen}
+        options={{title: 'Bank Information'}}
       />
       <ProfileStack.Screen
         name="Notifications"
