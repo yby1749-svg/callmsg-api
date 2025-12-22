@@ -6,6 +6,7 @@ import {
   ScrollView,
   RefreshControl,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
@@ -15,6 +16,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import {colors, typography, spacing, borderRadius, gradients, shadows} from '@config/theme';
 import {useShopOwnerStore} from '@store/shopStore';
 import {useNotificationStore} from '@store';
+import {getImageUrl} from '@config/constants';
 import type {ShopDashboardStackParamList} from '@types';
 
 type NavigationProp = NativeStackNavigationProp<ShopDashboardStackParamList>;
@@ -111,11 +113,18 @@ export function ShopDashboardScreen() {
         {/* Shop Status Card */}
         <View style={styles.card}>
           <View style={styles.shopHeader}>
-            <View style={styles.shopLogo}>
-              <Text style={styles.shopLogoText}>
-                {shop?.name?.charAt(0) || 'S'}
-              </Text>
-            </View>
+            {shop?.logoUrl ? (
+              <Image
+                source={{uri: getImageUrl(shop.logoUrl)}}
+                style={styles.shopLogoImage}
+              />
+            ) : (
+              <View style={styles.shopLogo}>
+                <Text style={styles.shopLogoText}>
+                  {shop?.name?.charAt(0) || 'S'}
+                </Text>
+              </View>
+            )}
             <View style={styles.shopInfo}>
               <Text style={styles.shopName}>{shop?.name || 'My Shop'}</Text>
               <View style={styles.statusBadge}>
@@ -342,6 +351,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 16,
+  },
+  shopLogoImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     marginRight: 16,
   },
   shopLogoText: {

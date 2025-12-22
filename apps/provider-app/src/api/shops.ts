@@ -213,6 +213,12 @@ export const shopOwnerApi = {
   updateShop: (data: Partial<Shop>) =>
     apiClient.patch<{data: Shop}>('/shops/me', data),
 
+  // Upload shop logo
+  uploadLogo: (formData: FormData) =>
+    apiClient.post<{data: Shop}>('/shops/me/logo', formData, {
+      headers: {'Content-Type': 'multipart/form-data'},
+    }),
+
   // Update bank account
   updateBankAccount: (data: {
     bankName?: string;

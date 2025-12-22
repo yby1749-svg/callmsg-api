@@ -37,6 +37,18 @@ export const updateBankAccount = async (req: Request, res: Response, next: NextF
   } catch (error) { next(error); }
 };
 
+export const uploadLogo = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    if (!req.file) {
+      res.status(400).json({ success: false, message: 'No file uploaded' });
+      return;
+    }
+    const logoUrl = `/uploads/logos/${req.file.filename}`;
+    const shop = await shopsService.updateMyShop(req.user!.id, { logoUrl });
+    res.json({ success: true, data: shop });
+  } catch (error) { next(error); }
+};
+
 // ============================================================================
 // Therapist Management
 // ============================================================================

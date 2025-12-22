@@ -7,12 +7,18 @@ import {
   TouchableOpacity,
   Alert,
   TextInput,
+  Image,
+  ActivityIndicator,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
+import {launchImageLibrary} from 'react-native-image-picker';
+import Icon from 'react-native-vector-icons/Ionicons';
 import {colors} from '@config/theme';
 import {useShopOwnerStore} from '@store/shopStore';
 import {useAuthStore} from '@store';
+import {shopOwnerApi} from '@api/shops';
 import {Button} from '@components/ui';
+import {getImageUrl} from '@config/constants';
 
 export function ShopProfileScreen() {
   const {shop, isLoading, fetchShop, updateShop, updateBankAccount} =
@@ -21,6 +27,7 @@ export function ShopProfileScreen() {
 
   const [isEditing, setIsEditing] = useState(false);
   const [isBankEditing, setIsBankEditing] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [shopData, setShopData] = useState({
     name: '',
     description: '',
@@ -38,6 +45,42 @@ export function ShopProfileScreen() {
   useEffect(() => {
     fetchShop();
   }, []);
+
+  const handlePickLogo = async () => {
+    try {
+      const result = await launchImageLibrary({
+        mediaType: 'photo',
+        quality: 0.8,
+        maxWidth: 500,
+        maxHeight: 500,
+      });
+
+      if (result.didCancel || !result.assets?.[0]) {
+        return;
+      }
+
+      const asset = result.assets[0];
+      if (!asset.uri) return;
+
+      setUploading(true);
+
+      const formData = new FormData();
+      formData.append('logo', {
+        uri: asset.uri,
+        type: asset.type || 'image/jpeg',
+        name: asset.fileName || 'logo.jpg',
+      } as any);
+
+      await shopOwnerApi.uploadLogo(formData);
+      await fetchShop();
+      Alert.alert('Success', 'Shop logo updated successfully');
+    } catch (error) {
+      console.error('Failed to upload logo:', error);
+      Alert.alert('Error', 'Failed to upload logo');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   useEffect(() => {
     if (shop) {
@@ -104,11 +147,30 @@ export function ShopProfileScreen() {
         {/* Shop Status */}
         <View style={styles.statusCard}>
           <View style={styles.shopHeader}>
-            <View style={styles.shopLogo}>
-              <Text style={styles.shopLogoText}>
-                {shop?.name?.charAt(0) || 'S'}
-              </Text>
-            </View>
+            <TouchableOpacity
+              style={styles.logoContainer}
+              onPress={handlePickLogo}
+              disabled={uploading}>
+              {uploading ? (
+                <View style={styles.shopLogo}>
+                  <ActivityIndicator color="#fff" />
+                </View>
+              ) : shop?.logoUrl ? (
+                <Image
+                  source={{uri: getImageUrl(shop.logoUrl)}}
+                  style={styles.shopLogoImage}
+                />
+              ) : (
+                <View style={styles.shopLogo}>
+                  <Text style={styles.shopLogoText}>
+                    {shop?.name?.charAt(0) || 'S'}
+                  </Text>
+                </View>
+              )}
+              <View style={styles.cameraOverlay}>
+                <Icon name="camera" size={14} color="#fff" />
+              </View>
+            </TouchableOpacity>
             <View style={styles.shopInfo}>
               <Text style={styles.shopName}>{shop?.name || 'My Shop'}</Text>
               <View style={styles.statusBadge}>
@@ -355,6 +417,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  logoContainer: {
+    position: 'relative',
+    marginRight: 16,
+  },
   shopLogo: {
     width: 60,
     height: 60,
@@ -362,7 +428,24 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 16,
+  },
+  shopLogoImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+  },
+  cameraOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.surface,
   },
   shopLogoText: {
     fontSize: 24,
