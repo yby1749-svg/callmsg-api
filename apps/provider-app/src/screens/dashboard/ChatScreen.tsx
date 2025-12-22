@@ -17,6 +17,7 @@ import {format} from 'date-fns';
 
 import {chatApi, Message} from '@api';
 import {socketService} from '@services/socket';
+import {useAuthStore} from '@store';
 import {colors, typography, spacing, borderRadius} from '@config/theme';
 import type {DashboardStackParamList} from '@types';
 
@@ -29,6 +30,8 @@ export function ChatScreen() {
   const queryClient = useQueryClient();
   const flatListRef = useRef<FlatList>(null);
   const [message, setMessage] = useState('');
+  const {user} = useAuthStore();
+  const currentUserId = user?.id;
 
   // Set header title
   useEffect(() => {
@@ -43,6 +46,9 @@ export function ChatScreen() {
 
     // Listen for new messages
     socketService.onChatMessage((newMessage) => {
+      // Skip if it's our own message (already added via onSuccess)
+      if (newMessage.senderId === currentUserId) return;
+
       if (newMessage.bookingId === bookingId) {
         queryClient.setQueryData(['chat', bookingId], (old: Message[] | undefined) => {
           if (!old) return [{ ...newMessage, isOwn: false }];
@@ -60,7 +66,7 @@ export function ChatScreen() {
       socketService.leaveBookingRoom(bookingId);
       socketService.offChatMessage();
     };
-  }, [bookingId, queryClient]);
+  }, [bookingId, queryClient, currentUserId]);
 
   // Fetch messages
   const {data: messages, isLoading} = useQuery({
