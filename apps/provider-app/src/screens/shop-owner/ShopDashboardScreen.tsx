@@ -164,15 +164,21 @@ export function ShopDashboardScreen() {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Quick Actions</Text>
           <View style={styles.actionsRow}>
-            <TouchableOpacity style={styles.actionButton}>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => (navigation.getParent() as any)?.navigate('ShopTherapistsTab', {screen: 'SendInvitation'})}>
               <Text style={styles.actionIcon}>👥</Text>
               <Text style={styles.actionLabel}>Invite</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton}>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => (navigation.getParent() as any)?.navigate('ShopEarningsTab', {screen: 'ShopPayoutRequest'})}>
               <Text style={styles.actionIcon}>💵</Text>
               <Text style={styles.actionLabel}>Payout</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton}>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => (navigation.getParent() as any)?.navigate('ShopEarningsTab', {screen: 'ShopEarnings'})}>
               <Text style={styles.actionIcon}>📊</Text>
               <Text style={styles.actionLabel}>Reports</Text>
             </TouchableOpacity>
