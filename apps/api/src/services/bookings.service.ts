@@ -414,6 +414,29 @@ class BookingService {
 
     notifyBookingUpdate(bookingId, { status: 'ACCEPTED' });
 
+    // Notify shop owner if therapist is affiliated with a shop
+    if (provider.shopId && provider.shop) {
+      const shopOwner = await prisma.user.findFirst({
+        where: { shopOwner: { shopId: provider.shopId } },
+      });
+      if (shopOwner) {
+        const therapistName = `${(await prisma.user.findUnique({ where: { id: userId } }))?.firstName || 'Therapist'}`;
+        await notificationService.createNotification(
+          shopOwner.id,
+          'BOOKING_ACCEPTED',
+          'Booking Accepted',
+          `${therapistName} accepted a booking for ${booking.service.name}`,
+          { bookingId, therapistId: provider.id, therapistName }
+        );
+        sendNotificationToUser(shopOwner.id, {
+          type: 'BOOKING_ACCEPTED',
+          title: 'Booking Accepted',
+          body: `${therapistName} accepted a booking for ${booking.service.name}`,
+          data: { bookingId },
+        });
+      }
+    }
+
     return updatedBooking;
   }
 
@@ -566,6 +589,32 @@ class BookingService {
     }
 
     notifyBookingUpdate(bookingId, { status });
+
+    // Notify shop owner when service is completed
+    if (status === 'COMPLETED' && booking.shopId) {
+      const shopOwner = await prisma.user.findFirst({
+        where: { shopOwner: { shopId: booking.shopId } },
+      });
+      if (shopOwner) {
+        const therapist = await prisma.user.findUnique({ where: { id: userId } });
+        const therapistName = therapist?.firstName || 'Therapist';
+        const shopEarning = booking.shopEarning || 0;
+
+        await notificationService.createNotification(
+          shopOwner.id,
+          'SERVICE_COMPLETED',
+          'Service Completed',
+          `${therapistName} completed ${booking.service.name} service. You earned ₱${shopEarning.toFixed(0)}`,
+          { bookingId, therapistId: provider.id, therapistName, shopEarning }
+        );
+        sendNotificationToUser(shopOwner.id, {
+          type: 'SERVICE_COMPLETED',
+          title: 'Service Completed',
+          body: `${therapistName} completed ${booking.service.name} service. You earned ₱${shopEarning.toFixed(0)}`,
+          data: { bookingId },
+        });
+      }
+    }
 
     return updatedBooking;
   }
