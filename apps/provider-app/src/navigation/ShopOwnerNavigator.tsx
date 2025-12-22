@@ -1,4 +1,5 @@
 import React from 'react';
+import {TouchableOpacity} from 'react-native';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -73,7 +74,16 @@ function ShopTherapistsNavigator() {
       <TherapistsStack.Screen
         name="SendInvitation"
         component={SendInvitationScreen}
-        options={{title: 'Invite Therapist'}}
+        options={({navigation}) => ({
+          title: 'Invite Therapist',
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => navigation.navigate('ShopTherapists')}
+              style={{marginLeft: 8}}>
+              <Icon name="arrow-back" size={24} color={colors.text} />
+            </TouchableOpacity>
+          ),
+        })}
       />
     </TherapistsStack.Navigator>
   );
