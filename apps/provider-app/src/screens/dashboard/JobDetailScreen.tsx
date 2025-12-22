@@ -200,11 +200,14 @@ export function JobDetailScreen() {
             onPress: async () => {
               try {
                 await updateJobStatus(bookingId, nextStatus);
-                refetch();
                 Toast.show({
                   type: 'success',
                   text1: 'Service Completed',
-                  text2: 'Great job!',
+                  text2: 'Great job! Check your schedule.',
+                });
+                // Navigate to Schedule tab to show completed job
+                navigation.getParent()?.navigate('ScheduleTab', {
+                  screen: 'Calendar',
                 });
               } catch {
                 Toast.show({
