@@ -15,15 +15,22 @@ import {launchImageLibrary} from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/Ionicons';
 import {colors} from '@config/theme';
 import {useShopOwnerStore} from '@store/shopStore';
-import {useAuthStore} from '@store';
+import {useAuthStore, useNotificationStore} from '@store';
 import {shopOwnerApi} from '@api/shops';
+import {useNavigation} from '@react-navigation/native';
+import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import type {ShopProfileStackParamList} from '@types';
 import {Button} from '@components/ui';
 import {getImageUrl} from '@config/constants';
 
+type NavigationProp = NativeStackNavigationProp<ShopProfileStackParamList>;
+
 export function ShopProfileScreen() {
+  const navigation = useNavigation<NavigationProp>();
   const {shop, isLoading, fetchShop, updateShop, updateBankAccount} =
     useShopOwnerStore();
   const {logout} = useAuthStore();
+  const {unreadCount} = useNotificationStore();
 
   const [isEditing, setIsEditing] = useState(false);
   const [isBankEditing, setIsBankEditing] = useState(false);
@@ -390,6 +397,31 @@ export function ShopProfileScreen() {
           </View>
         </View>
 
+        {/* Notifications Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Notifications</Text>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('Notifications')}>
+            <View style={styles.menuItemLeft}>
+              <View style={[styles.menuIcon, {backgroundColor: colors.primary + '15'}]}>
+                <Icon name="notifications" size={20} color={colors.primary} />
+              </View>
+              <Text style={styles.menuItemText}>Notifications</Text>
+            </View>
+            <View style={styles.menuItemRight}>
+              {unreadCount > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Text>
+                </View>
+              )}
+              <Icon name="chevron-forward" size={20} color={colors.textSecondary} />
+            </View>
+          </TouchableOpacity>
+        </View>
+
         {/* Logout Button */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Text style={styles.logoutText}>Logout</Text>
@@ -529,6 +561,50 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: colors.border,
     marginVertical: 16,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 14,
+  },
+  menuItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  menuIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  menuItemText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  menuItemRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  badge: {
+    backgroundColor: colors.error,
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#fff',
   },
   logoutButton: {
     backgroundColor: colors.error + '10',
