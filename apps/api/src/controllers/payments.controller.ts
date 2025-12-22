@@ -54,9 +54,20 @@ export const handleWebhook = async (req: Request, res: Response, next: NextFunct
 export const handleCallback = async (req: Request, res: Response): Promise<void> => {
   const { status, payment_intent_id } = req.query;
 
+  // Validate status to prevent open redirect
+  const allowedStatuses = ['succeeded', 'failed', 'pending', 'processing', 'cancelled'];
+  const sanitizedStatus = typeof status === 'string' && allowedStatuses.includes(status.toLowerCase())
+    ? status.toLowerCase()
+    : 'unknown';
+
+  // Validate payment_intent_id format (alphanumeric and underscores only)
+  const sanitizedPaymentId = typeof payment_intent_id === 'string' && /^[a-zA-Z0-9_-]+$/.test(payment_intent_id)
+    ? payment_intent_id
+    : '';
+
   // Redirect to mobile app with deep link
   const appScheme = process.env.APP_SCHEME || 'masasia';
-  const redirectUrl = `${appScheme}://payment/callback?status=${status}&payment_intent_id=${payment_intent_id}`;
+  const redirectUrl = `${appScheme}://payment/callback?status=${encodeURIComponent(sanitizedStatus)}&payment_intent_id=${encodeURIComponent(sanitizedPaymentId)}`;
 
   res.redirect(redirectUrl);
 };

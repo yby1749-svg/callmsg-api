@@ -6,6 +6,15 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../config/database.js';
 
+// Get JWT secret with validation
+const getJwtSecret = (): string => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret || secret === 'your-super-secret-jwt-key-change-in-production') {
+    throw new Error('JWT_SECRET environment variable is not set or is using default value');
+  }
+  return secret;
+};
+
 // Extend Express Request type
 declare global {
   namespace Express {
@@ -43,10 +52,7 @@ export const authenticate = async (
     const token = authHeader.split(' ')[1];
 
     // Verify token
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET || 'secret'
-    ) as JwtPayload;
+    const decoded = jwt.verify(token, getJwtSecret()) as JwtPayload;
 
     // Check if user exists
     const user = await prisma.user.findUnique({
@@ -101,10 +107,7 @@ export const optionalAuth = async (
 
     const token = authHeader.split(' ')[1];
 
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET || 'secret'
-    ) as JwtPayload;
+    const decoded = jwt.verify(token, getJwtSecret()) as JwtPayload;
 
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },

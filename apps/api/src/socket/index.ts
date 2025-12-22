@@ -14,10 +14,34 @@ interface AuthenticatedSocket extends Socket {
   role?: string;
 }
 
+// Get JWT secret with validation
+const getJwtSecret = (): string => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret || secret === 'your-super-secret-jwt-key-change-in-production') {
+    throw new Error('JWT_SECRET environment variable is not set or is using default value');
+  }
+  return secret;
+};
+
+// Get CORS origins with validation (no wildcard fallback)
+const getCorsOrigins = (): string[] | boolean => {
+  const origins = process.env.CORS_ORIGINS;
+  if (!origins) {
+    // In development, allow localhost origins
+    if (process.env.NODE_ENV === 'development') {
+      return ['http://localhost:3000', 'http://localhost:8081'];
+    }
+    // In production, require explicit CORS_ORIGINS
+    console.warn('WARNING: CORS_ORIGINS not set. Socket connections may fail.');
+    return false;
+  }
+  return origins.split(',').map(o => o.trim());
+};
+
 export function initializeSocket(server: HttpServer) {
   io = new Server(server, {
     cors: {
-      origin: process.env.CORS_ORIGINS?.split(',') || '*',
+      origin: getCorsOrigins(),
       credentials: true,
     },
     pingTimeout: 60000,
@@ -28,12 +52,12 @@ export function initializeSocket(server: HttpServer) {
   io.use(async (socket: AuthenticatedSocket, next) => {
     try {
       const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.split(' ')[1];
-      
+
       if (!token) {
         return next(new Error('Authentication required'));
       }
 
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as {
+      const decoded = jwt.verify(token, getJwtSecret()) as {
         userId: string;
         role: string;
       };

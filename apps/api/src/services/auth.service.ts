@@ -224,7 +224,7 @@ class AuthService {
     await redis.set(`password-reset:${resetToken}`, user.id, 'EX', 3600);
 
     // TODO: Send email with reset link
-    console.log(`Password reset token for ${email}: ${resetToken}`);
+    // Note: In production, send resetToken via email, never log it
   }
 
   // Reset password
@@ -302,8 +302,8 @@ class AuthService {
 
     await redis.set(`email-verify:${verifyToken}`, userId, 'EX', 86400); // 24 hours
 
-    // TODO: Send email
-    console.log(`Email verification token for ${user.email}: ${verifyToken}`);
+    // TODO: Send email with verification link
+    // Note: In production, send verifyToken via email, never log it
   }
 
   // Verify email
