@@ -217,11 +217,18 @@ export function ShopDashboardScreen() {
                     therapistName: `${therapist.user?.firstName} ${therapist.user?.lastName}`,
                   })
                 }>
-                <View style={styles.therapistAvatar}>
-                  <Text style={styles.avatarText}>
-                    {therapist.user?.firstName?.charAt(0) || 'T'}
-                  </Text>
-                </View>
+                {therapist.user?.avatarUrl ? (
+                  <Image
+                    source={{uri: getImageUrl(therapist.user.avatarUrl)}}
+                    style={styles.therapistAvatarImage}
+                  />
+                ) : (
+                  <View style={styles.therapistAvatar}>
+                    <Text style={styles.avatarText}>
+                      {therapist.user?.firstName?.charAt(0) || 'T'}
+                    </Text>
+                  </View>
+                )}
                 <View style={styles.therapistInfo}>
                   <Text style={styles.therapistName}>
                     {therapist.user?.firstName} {therapist.user?.lastName}
@@ -472,6 +479,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 12,
+  },
+  therapistAvatarImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     marginRight: 12,
   },
   avatarText: {
