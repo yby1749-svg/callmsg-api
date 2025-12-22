@@ -187,9 +187,9 @@ export function ShopDashboardScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.actionButton}
-              onPress={() => (navigation.getParent() as any)?.navigate('ShopEarningsTab', {screen: 'ShopEarnings'})}>
-              <Text style={styles.actionIcon}>📊</Text>
-              <Text style={styles.actionLabel}>Reports</Text>
+              onPress={() => (navigation.getParent() as any)?.navigate('ShopEarningsTab', {screen: 'ShopWallet'})}>
+              <Text style={styles.actionIcon}>💳</Text>
+              <Text style={styles.actionLabel}>Top Up</Text>
             </TouchableOpacity>
           </View>
         </View>
