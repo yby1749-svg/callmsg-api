@@ -105,6 +105,26 @@ router.get('/me/therapists', authenticate, requireShopOwner, shopsController.get
 
 /**
  * @swagger
+ * /shops/therapists/{therapistId}/activity:
+ *   get:
+ *     summary: Get therapist activity and current booking
+ *     tags: [Shops]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: therapistId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Therapist activity details
+ */
+router.get('/therapists/:therapistId/activity', authenticate, requireShopOwner, shopsController.getTherapistActivity);
+
+/**
+ * @swagger
  * /shops/me/therapists/{providerId}:
  *   delete:
  *     summary: Remove therapist from shop

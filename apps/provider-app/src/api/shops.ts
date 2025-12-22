@@ -123,6 +123,52 @@ export interface ShopPayout {
   createdAt: string;
 }
 
+export interface TherapistActivity {
+  id: string;
+  displayName: string;
+  onlineStatus: string;
+  rating: number;
+  completedBookings: number;
+  user: {
+    firstName: string;
+    lastName: string;
+    phone?: string;
+    avatarUrl?: string;
+  };
+  activeBooking?: {
+    id: string;
+    bookingNumber: string;
+    status: string;
+    scheduledAt: string;
+    duration: number;
+    addressText: string;
+    totalAmount: number;
+    customer: {
+      firstName: string;
+      lastName: string;
+    };
+    service: {
+      name: string;
+    };
+  };
+  todayBookings: Array<{
+    id: string;
+    bookingNumber: string;
+    status: string;
+    scheduledAt: string;
+    duration: number;
+    addressText: string;
+    totalAmount: number;
+    customer: {
+      firstName: string;
+      lastName: string;
+    };
+    service: {
+      name: string;
+    };
+  }>;
+}
+
 // ============================================================================
 // Provider-side Shop API (for therapists)
 // ============================================================================
@@ -226,4 +272,8 @@ export const shopOwnerApi = {
   // Request payout
   requestPayout: (data: {amount: number; method: string}) =>
     apiClient.post<{data: ShopPayout}>('/shops/me/payouts', data),
+
+  // Get therapist activity
+  getTherapistActivity: (therapistId: string) =>
+    apiClient.get<{data: TherapistActivity}>(`/shops/therapists/${therapistId}/activity`),
 };

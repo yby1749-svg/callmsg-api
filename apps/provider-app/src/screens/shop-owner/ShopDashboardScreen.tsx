@@ -10,14 +10,18 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
-import {colors} from '@config/theme';
+import Icon from 'react-native-vector-icons/Ionicons';
+import LinearGradient from 'react-native-linear-gradient';
+import {colors, typography, spacing, borderRadius, gradients, shadows} from '@config/theme';
 import {useShopOwnerStore} from '@store/shopStore';
+import {useNotificationStore} from '@store';
 import type {ShopDashboardStackParamList} from '@types';
 
 type NavigationProp = NativeStackNavigationProp<ShopDashboardStackParamList>;
 
 export function ShopDashboardScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const {unreadCount} = useNotificationStore();
   const {
     shop,
     earningsSummary,
@@ -55,13 +59,56 @@ export function ShopDashboardScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <View style={styles.container}>
+      {/* Hero Header with Gradient - matches provider app design */}
+      <LinearGradient
+        colors={gradients.hero as [string, string, string]}
+        style={styles.heroGradient}>
+        <SafeAreaView edges={['top']}>
+          <View style={styles.header}>
+            <View style={styles.headerLeft}>
+              <Text style={styles.greeting}>Hello, Shop Owner!</Text>
+              <Text style={styles.subtitle}>{shop?.name || 'My Shop'}</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.notificationButton}
+              onPress={() => (navigation as any).navigate('ProfileTab', {screen: 'Notifications'})}>
+              <View style={styles.notificationIconContainer}>
+                <Icon name="notifications" size={22} color={colors.text} />
+                {unreadCount > 0 && (
+                  <View style={styles.notificationBadge}>
+                    <Text style={styles.notificationBadgeText}>
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          {/* Quick Stats in Header */}
+          <View style={styles.headerStatsContainer}>
+            <View style={styles.headerStatCard}>
+              <Text style={styles.headerStatValue}>
+                {formatCurrency(earningsSummary?.balance || 0)}
+              </Text>
+              <Text style={styles.headerStatLabel}>Balance</Text>
+            </View>
+            <View style={styles.headerStatCard}>
+              <Text style={styles.headerStatValue}>{therapists.length}</Text>
+              <Text style={styles.headerStatLabel}>Online</Text>
+            </View>
+          </View>
+        </SafeAreaView>
+      </LinearGradient>
+
       <ScrollView
+        style={styles.scrollView}
         contentContainerStyle={styles.content}
         refreshControl={
           <RefreshControl refreshing={isLoading} onRefresh={loadData} />
         }>
-        {/* Shop Info Card */}
+        {/* Shop Status Card */}
         <View style={styles.card}>
           <View style={styles.shopHeader}>
             <View style={styles.shopLogo}>
@@ -85,19 +132,6 @@ export function ShopDashboardScreen() {
         </View>
 
         {/* Stats Cards */}
-        <View style={styles.statsRow}>
-          <View style={[styles.statCard, styles.statCardPrimary]}>
-            <Text style={styles.statLabel}>Balance</Text>
-            <Text style={styles.statValue}>
-              {formatCurrency(earningsSummary?.balance || 0)}
-            </Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statLabel}>Therapists</Text>
-            <Text style={styles.statValue}>{therapists.length}</Text>
-          </View>
-        </View>
-
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>Today</Text>
@@ -159,7 +193,15 @@ export function ShopDashboardScreen() {
             </Text>
           ) : (
             therapists.slice(0, 3).map(therapist => (
-              <View key={therapist.id} style={styles.therapistItem}>
+              <TouchableOpacity
+                key={therapist.id}
+                style={styles.therapistItem}
+                onPress={() =>
+                  navigation.navigate('TherapistActivity', {
+                    therapistId: therapist.id,
+                    therapistName: `${therapist.user?.firstName} ${therapist.user?.lastName}`,
+                  })
+                }>
                 <View style={styles.therapistAvatar}>
                   <Text style={styles.avatarText}>
                     {therapist.user?.firstName?.charAt(0) || 'T'}
@@ -173,18 +215,19 @@ export function ShopDashboardScreen() {
                     {therapist.completedBookings} bookings completed
                   </Text>
                 </View>
+                <Icon name="chevron-forward" size={20} color={colors.textLight} />
                 <View
                   style={[
                     styles.onlineIndicator,
                     therapist.onlineStatus === 'ONLINE' && styles.online,
                   ]}
                 />
-              </View>
+              </TouchableOpacity>
             ))
           )}
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -193,19 +236,94 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  heroGradient: {
+    paddingBottom: spacing.lg,
+    borderBottomLeftRadius: borderRadius.xxl,
+    borderBottomRightRadius: borderRadius.xxl,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: spacing.lg,
+  },
+  headerLeft: {
+    flex: 1,
+  },
+  greeting: {
+    ...typography.h2,
+    color: colors.text,
+  },
+  subtitle: {
+    ...typography.body,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+  },
+  notificationButton: {
+    marginRight: spacing.sm,
+  },
+  notificationIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: borderRadius.lg,
+    backgroundColor: colors.card,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...shadows.sm,
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: colors.error,
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: colors.card,
+  },
+  notificationBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  headerStatsContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: spacing.lg,
+    gap: spacing.md,
+  },
+  headerStatCard: {
+    flex: 1,
+    backgroundColor: colors.card,
+    padding: spacing.md,
+    borderRadius: borderRadius.lg,
+    alignItems: 'center',
+    ...shadows.sm,
+  },
+  headerStatValue: {
+    ...typography.h2,
+    color: colors.primary,
+  },
+  headerStatLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+  },
   content: {
-    padding: 16,
+    padding: spacing.lg,
   },
   card: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
+    ...shadows.sm,
   },
   shopHeader: {
     flexDirection: 'row',
@@ -250,28 +368,26 @@ const styles = StyleSheet.create({
   },
   statsRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 12,
+    gap: spacing.md,
+    marginBottom: spacing.md,
   },
   statCard: {
     flex: 1,
     backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
     alignItems: 'center',
-  },
-  statCardPrimary: {
-    backgroundColor: colors.primary,
+    ...shadows.sm,
   },
   statLabel: {
-    fontSize: 12,
+    ...typography.caption,
     color: colors.textSecondary,
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   statValue: {
-    fontSize: 18,
+    ...typography.h3,
     fontWeight: '700',
-    color: colors.text,
+    color: colors.primary,
   },
   cardTitle: {
     fontSize: 16,

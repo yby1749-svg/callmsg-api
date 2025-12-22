@@ -120,15 +120,18 @@ class ShopsService {
 
     const [therapists, total] = await Promise.all([
       prisma.provider.findMany({
-        where: { shopId: shop.id },
+        where: {
+          shopId: shop.id,
+          onlineStatus: 'ONLINE', // Only show ONLINE therapists
+        },
         include: {
           user: { select: { firstName: true, lastName: true, avatarUrl: true, phone: true, email: true } },
         },
         take: limit,
         skip: (page - 1) * limit,
-        orderBy: { shopJoinedAt: 'desc' },
+        orderBy: { completedBookings: 'desc' }, // Sort by bookings
       }),
-      prisma.provider.count({ where: { shopId: shop.id } }),
+      prisma.provider.count({ where: { shopId: shop.id, onlineStatus: 'ONLINE' } }),
     ]);
 
     return {
@@ -150,6 +153,65 @@ class ShopsService {
       where: { id: providerId },
       data: { shopId: null, shopJoinedAt: null },
     });
+  }
+
+  async getTherapistActivity(userId: string, therapistId: string) {
+    const shop = await prisma.shop.findUnique({ where: { ownerId: userId } });
+    if (!shop) throw new AppError('Shop not found', 404);
+
+    const therapist = await prisma.provider.findUnique({
+      where: { id: therapistId },
+      include: {
+        user: { select: { firstName: true, lastName: true, phone: true, avatarUrl: true } },
+      },
+    });
+
+    if (!therapist || therapist.shopId !== shop.id) {
+      throw new AppError('Therapist not found in your shop', 404);
+    }
+
+    // Get active booking (in progress statuses)
+    const activeBooking = await prisma.booking.findFirst({
+      where: {
+        providerId: therapistId,
+        status: { in: ['ACCEPTED', 'PROVIDER_EN_ROUTE', 'PROVIDER_ARRIVED', 'IN_PROGRESS'] },
+      },
+      include: {
+        customer: { select: { firstName: true, lastName: true } },
+        service: { select: { name: true } },
+      },
+      orderBy: { scheduledAt: 'asc' },
+    });
+
+    // Get today's bookings
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const todayBookings = await prisma.booking.findMany({
+      where: {
+        providerId: therapistId,
+        scheduledAt: { gte: today, lt: tomorrow },
+        status: { notIn: ['CANCELLED', 'REJECTED'] },
+      },
+      include: {
+        customer: { select: { firstName: true, lastName: true } },
+        service: { select: { name: true } },
+      },
+      orderBy: { scheduledAt: 'asc' },
+    });
+
+    return {
+      id: therapist.id,
+      displayName: therapist.displayName,
+      onlineStatus: therapist.onlineStatus,
+      rating: therapist.rating,
+      completedBookings: therapist.completedBookings,
+      user: therapist.user,
+      activeBooking,
+      todayBookings,
+    };
   }
 
   // ============================================================================

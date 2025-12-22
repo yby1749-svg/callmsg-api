@@ -55,6 +55,13 @@ export const removeTherapist = async (req: Request, res: Response, next: NextFun
   } catch (error) { next(error); }
 };
 
+export const getTherapistActivity = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const activity = await shopsService.getTherapistActivity(req.user!.id, req.params.therapistId);
+    res.json({ success: true, data: activity });
+  } catch (error) { next(error); }
+};
+
 // ============================================================================
 // Invitations
 // ============================================================================

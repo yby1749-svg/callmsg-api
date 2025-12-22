@@ -20,6 +20,7 @@ import {ShopWalletScreen} from '../screens/shop-owner/ShopWalletScreen';
 import {ShopProfileScreen} from '../screens/shop-owner/ShopProfileScreen';
 import {SendInvitationScreen} from '../screens/shop-owner/SendInvitationScreen';
 import {TherapistMapScreen} from '../screens/shop-owner/TherapistMapScreen';
+import {TherapistActivityScreen} from '../screens/shop-owner/TherapistActivityScreen';
 
 const Tab = createBottomTabNavigator<ShopOwnerTabParamList>();
 const DashboardStack = createNativeStackNavigator<ShopDashboardStackParamList>();
@@ -55,12 +56,17 @@ function ShopDashboardNavigator() {
       <DashboardStack.Screen
         name="ShopDashboard"
         component={ShopDashboardScreen}
-        options={{title: 'Dashboard'}}
+        options={{headerShown: false}}
       />
       <DashboardStack.Screen
         name="TherapistMap"
         component={TherapistMapScreen}
         options={{title: 'Therapist Locations'}}
+      />
+      <DashboardStack.Screen
+        name="TherapistActivity"
+        component={TherapistActivityScreen}
+        options={{title: 'Therapist Activity'}}
       />
     </DashboardStack.Navigator>
   );
