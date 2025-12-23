@@ -16,7 +16,7 @@ import {zodResolver} from '@hookform/resolvers/zod';
 import {z} from 'zod';
 import Toast from 'react-native-toast-message';
 
-import {Button, Input} from '@components';
+import {Button, Input, Captcha} from '@components';
 import {useAuthStore} from '@store';
 import {colors, typography, spacing} from '@config/theme';
 import type {AuthStackParamList} from '@types';
@@ -43,6 +43,7 @@ export function RegisterScreen() {
   const navigation = useNavigation<NavigationProp>();
   const {register, isLoading} = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
+  const [isCaptchaVerified, setIsCaptchaVerified] = useState(false);
 
   const {
     control,
@@ -61,6 +62,15 @@ export function RegisterScreen() {
   });
 
   const onSubmit = async (data: RegisterFormData) => {
+    if (!isCaptchaVerified) {
+      Toast.show({
+        type: 'error',
+        text1: 'Verification Required',
+        text2: 'Please complete the CAPTCHA verification',
+      });
+      return;
+    }
+
     try {
       await register({
         firstName: data.firstName,
@@ -208,10 +218,15 @@ export function RegisterScreen() {
               )}
             />
 
+            <Captcha
+              onVerified={setIsCaptchaVerified}
+            />
+
             <Button
               title="Create Account"
               onPress={handleSubmit(onSubmit)}
               loading={isLoading}
+              disabled={!isCaptchaVerified}
               style={styles.button}
             />
           </View>

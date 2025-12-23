@@ -15,7 +15,7 @@ import {useForm, Controller} from 'react-hook-form';
 import {zodResolver} from '@hookform/resolvers/zod';
 import {z} from 'zod';
 
-import {Button, Input} from '@components';
+import {Button, Input, Captcha} from '@components';
 import {useAuthStore, useUIStore} from '@store';
 import {colors, typography, spacing} from '@config/theme';
 import type {AuthStackParamList} from '@navigation';
@@ -43,6 +43,7 @@ export function RegisterScreen() {
   const {register, isLoading} = useAuthStore();
   const {showError, showSuccess} = useUIStore();
   const [showPassword, setShowPassword] = useState(false);
+  const [isCaptchaVerified, setIsCaptchaVerified] = useState(false);
 
   const {
     control,
@@ -61,6 +62,11 @@ export function RegisterScreen() {
   });
 
   const onSubmit = async (data: RegisterFormData) => {
+    if (!isCaptchaVerified) {
+      showError('Verification Required', 'Please complete the CAPTCHA verification');
+      return;
+    }
+
     try {
       await register({
         firstName: data.firstName,
@@ -203,10 +209,16 @@ export function RegisterScreen() {
               )}
             />
 
+            <Captcha
+              onVerified={setIsCaptchaVerified}
+              error={!isCaptchaVerified ? undefined : undefined}
+            />
+
             <Button
               title="Create Account"
               onPress={handleSubmit(onSubmit)}
               loading={isLoading}
+              disabled={!isCaptchaVerified}
               style={styles.button}
             />
           </View>

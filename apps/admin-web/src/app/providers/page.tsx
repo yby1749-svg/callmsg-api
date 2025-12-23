@@ -4,13 +4,8 @@ import { useEffect, useState } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { adminApi } from '@/lib/api';
 import {
-  Check,
   X,
-  Eye,
   Search,
-  Filter,
-  UserX,
-  UserCheck,
 } from 'lucide-react';
 
 interface Provider {
@@ -65,10 +60,12 @@ export default function ProvidersPage() {
     try {
       setActionLoading(true);
       await adminApi.approveProvider(id);
+      alert('Provider approved successfully!');
       loadProviders();
       setShowModal(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to approve provider:', error);
+      alert(`Failed to approve provider: ${error.response?.data?.error || error.message}`);
     } finally {
       setActionLoading(false);
     }
@@ -78,12 +75,14 @@ export default function ProvidersPage() {
     try {
       setActionLoading(true);
       await adminApi.rejectProvider(id, rejectReason);
+      alert('Provider rejected successfully!');
       loadProviders();
       setShowRejectModal(false);
       setShowModal(false);
       setRejectReason('');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to reject provider:', error);
+      alert(`Failed to reject provider: ${error.response?.data?.error || error.message}`);
     } finally {
       setActionLoading(false);
     }
@@ -206,7 +205,14 @@ export default function ProvidersPage() {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredProviders.map((provider) => (
-                    <tr key={provider.id} className="hover:bg-gray-50">
+                    <tr
+                      key={provider.id}
+                      className="hover:bg-gray-50 cursor-pointer"
+                      onClick={() => {
+                        setSelectedProvider(provider);
+                        setShowModal(true);
+                      }}
+                    >
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center">
@@ -254,48 +260,19 @@ export default function ProvidersPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex items-center justify-end gap-2">
                           <button
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setSelectedProvider(provider);
                               setShowModal(true);
                             }}
-                            className="text-primary-600 hover:text-primary-900"
+                            className="bg-primary-600 hover:bg-primary-700 text-white px-3 py-1 rounded text-sm font-medium"
                           >
-                            <Eye className="w-5 h-5" />
+                            View Details
                           </button>
                           {provider.status === 'PENDING' && (
-                            <>
-                              <button
-                                onClick={() => handleApprove(provider.id)}
-                                className="text-green-600 hover:text-green-900"
-                              >
-                                <Check className="w-5 h-5" />
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setSelectedProvider(provider);
-                                  setShowRejectModal(true);
-                                }}
-                                className="text-red-600 hover:text-red-900"
-                              >
-                                <X className="w-5 h-5" />
-                              </button>
-                            </>
-                          )}
-                          {provider.status === 'APPROVED' && (
-                            <button
-                              onClick={() => handleSuspend(provider.id)}
-                              className="text-gray-600 hover:text-gray-900"
-                            >
-                              <UserX className="w-5 h-5" />
-                            </button>
-                          )}
-                          {provider.status === 'SUSPENDED' && (
-                            <button
-                              onClick={() => handleUnsuspend(provider.id)}
-                              className="text-green-600 hover:text-green-900"
-                            >
-                              <UserCheck className="w-5 h-5" />
-                            </button>
+                            <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full font-medium">
+                              Needs Review
+                            </span>
                           )}
                         </div>
                       </td>
@@ -379,46 +356,53 @@ export default function ProvidersPage() {
                   </div>
                 )}
 
-                <div className="flex gap-3 pt-4 border-t border-gray-200">
+                <div className="pt-4 border-t border-gray-200 space-y-3">
                   {selectedProvider.status === 'PENDING' && (
-                    <>
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                      <p className="text-yellow-800 font-medium text-center">This provider is waiting for approval</p>
+                    </div>
+                  )}
+                  <div className="flex gap-3">
+                    {selectedProvider.status === 'PENDING' && (
+                      <>
+                        <button
+                          onClick={() => handleApprove(selectedProvider.id)}
+                          disabled={actionLoading}
+                          className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg text-lg transition-colors disabled:opacity-50"
+                        >
+                          {actionLoading ? 'Processing...' : 'Approve Provider'}
+                        </button>
+                        <button
+                          onClick={() => setShowRejectModal(true)}
+                          disabled={actionLoading}
+                          className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg text-lg transition-colors disabled:opacity-50"
+                        >
+                          Reject
+                        </button>
+                      </>
+                    )}
+                    {selectedProvider.status === 'APPROVED' && (
                       <button
-                        onClick={() => handleApprove(selectedProvider.id)}
+                        onClick={() => handleSuspend(selectedProvider.id)}
                         disabled={actionLoading}
-                        className="btn btn-success flex-1"
+                        className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg text-lg transition-colors disabled:opacity-50"
                       >
-                        {actionLoading ? 'Processing...' : 'Approve'}
+                        {actionLoading ? 'Processing...' : 'Suspend Provider'}
                       </button>
+                    )}
+                    {selectedProvider.status === 'SUSPENDED' && (
                       <button
-                        onClick={() => setShowRejectModal(true)}
+                        onClick={() => handleUnsuspend(selectedProvider.id)}
                         disabled={actionLoading}
-                        className="btn btn-danger flex-1"
+                        className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg text-lg transition-colors disabled:opacity-50"
                       >
-                        Reject
+                        {actionLoading ? 'Processing...' : 'Unsuspend Provider'}
                       </button>
-                    </>
-                  )}
-                  {selectedProvider.status === 'APPROVED' && (
-                    <button
-                      onClick={() => handleSuspend(selectedProvider.id)}
-                      disabled={actionLoading}
-                      className="btn btn-danger flex-1"
-                    >
-                      {actionLoading ? 'Processing...' : 'Suspend'}
-                    </button>
-                  )}
-                  {selectedProvider.status === 'SUSPENDED' && (
-                    <button
-                      onClick={() => handleUnsuspend(selectedProvider.id)}
-                      disabled={actionLoading}
-                      className="btn btn-success flex-1"
-                    >
-                      {actionLoading ? 'Processing...' : 'Unsuspend'}
-                    </button>
-                  )}
+                    )}
+                  </div>
                   <button
                     onClick={() => setShowModal(false)}
-                    className="btn btn-outline flex-1"
+                    className="w-full btn btn-outline"
                   >
                     Close
                   </button>
