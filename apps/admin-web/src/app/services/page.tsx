@@ -9,7 +9,7 @@ interface Service {
   id: string;
   name: string;
   description: string;
-  duration: number;
+  baseDuration: number;
   basePrice: number;
   isActive: boolean;
   createdAt: string;
@@ -24,7 +24,7 @@ export default function ServicesPage() {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    duration: 60,
+    baseDuration: 60,
     basePrice: 500,
   });
 
@@ -79,7 +79,7 @@ export default function ServicesPage() {
       setFormData({
         name: service.name,
         description: service.description,
-        duration: service.duration,
+        baseDuration: service.baseDuration,
         basePrice: service.basePrice,
       });
     } else {
@@ -87,7 +87,7 @@ export default function ServicesPage() {
       setFormData({
         name: '',
         description: '',
-        duration: 60,
+        baseDuration: 60,
         basePrice: 500,
       });
     }
@@ -100,7 +100,7 @@ export default function ServicesPage() {
     setFormData({
       name: '',
       description: '',
-      duration: 60,
+      baseDuration: 60,
       basePrice: 500,
     });
   };
@@ -153,7 +153,7 @@ export default function ServicesPage() {
                 <div className="mt-4 flex items-center gap-4">
                   <div className="flex items-center gap-1 text-gray-600">
                     <Clock className="w-4 h-4" />
-                    <span className="text-sm">{service.duration} mins</span>
+                    <span className="text-sm">{service.baseDuration} mins</span>
                   </div>
                   <div className="flex items-center gap-1 text-gray-600">
                     <DollarSign className="w-4 h-4" />
@@ -231,8 +231,8 @@ export default function ServicesPage() {
                     </label>
                     <input
                       type="number"
-                      value={formData.duration}
-                      onChange={(e) => setFormData({ ...formData, duration: parseInt(e.target.value) })}
+                      value={formData.baseDuration}
+                      onChange={(e) => setFormData({ ...formData, baseDuration: parseInt(e.target.value) })}
                       className="input"
                       min="15"
                       step="15"
