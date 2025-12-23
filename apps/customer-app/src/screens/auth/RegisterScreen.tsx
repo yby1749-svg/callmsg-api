@@ -63,10 +63,9 @@ export function RegisterScreen() {
 
   const onSubmit = async (data: RegisterFormData) => {
     if (!isCaptchaVerified) {
-      showError('Verification Required', 'Please complete the CAPTCHA verification');
+      showError('Verification Required', 'Please complete the human verification');
       return;
     }
-
     try {
       await register({
         firstName: data.firstName,
@@ -209,10 +208,7 @@ export function RegisterScreen() {
               )}
             />
 
-            <Captcha
-              onVerified={setIsCaptchaVerified}
-              error={!isCaptchaVerified ? undefined : undefined}
-            />
+            <Captcha onVerified={setIsCaptchaVerified} />
 
             <Button
               title="Create Account"

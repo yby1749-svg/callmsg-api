@@ -1,7 +1,7 @@
-import React, {useState, useEffect, useCallback} from 'react';
+import React, {useState, useEffect, useRef} from 'react';
 import {View, Text, StyleSheet, TouchableOpacity, TextInput} from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import {colors, typography, spacing} from '@config/theme';
+import {colors, spacing} from '@config/theme';
 
 interface CaptchaProps {
   onVerified: (verified: boolean) => void;
@@ -9,14 +9,19 @@ interface CaptchaProps {
 }
 
 export function Captcha({onVerified, error}: CaptchaProps) {
-  const [num1, setNum1] = useState(0);
-  const [num2, setNum2] = useState(0);
+  const [num1, setNum1] = useState(() => Math.floor(Math.random() * 10) + 1);
+  const [num2, setNum2] = useState(() => Math.floor(Math.random() * 10) + 1);
   const [operator, setOperator] = useState<'+' | '-'>('+');
   const [userAnswer, setUserAnswer] = useState('');
   const [isVerified, setIsVerified] = useState(false);
   const [showError, setShowError] = useState(false);
+  const onVerifiedRef = useRef(onVerified);
 
-  const generateChallenge = useCallback(() => {
+  useEffect(() => {
+    onVerifiedRef.current = onVerified;
+  }, [onVerified]);
+
+  const generateChallenge = () => {
     const n1 = Math.floor(Math.random() * 10) + 1;
     const n2 = Math.floor(Math.random() * 10) + 1;
     const op = Math.random() > 0.5 ? '+' : '-';
@@ -33,12 +38,8 @@ export function Captcha({onVerified, error}: CaptchaProps) {
     setUserAnswer('');
     setIsVerified(false);
     setShowError(false);
-    onVerified(false);
-  }, [onVerified]);
-
-  useEffect(() => {
-    generateChallenge();
-  }, []);
+    onVerifiedRef.current(false);
+  };
 
   const correctAnswer = operator === '+' ? num1 + num2 : num1 - num2;
 
@@ -47,11 +48,11 @@ export function Captcha({onVerified, error}: CaptchaProps) {
     if (answer === correctAnswer) {
       setIsVerified(true);
       setShowError(false);
-      onVerified(true);
+      onVerifiedRef.current(true);
     } else {
       setShowError(true);
       setIsVerified(false);
-      onVerified(false);
+      onVerifiedRef.current(false);
       // Generate new challenge after wrong answer
       setTimeout(() => {
         generateChallenge();
@@ -144,7 +145,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   title: {
-    ...typography.bodySmall,
+    fontSize: 14,
     color: colors.text,
     fontWeight: '600',
     marginLeft: spacing.xs,
@@ -160,14 +161,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   questionText: {
-    ...typography.h2,
+    fontSize: 24,
     color: colors.text,
     fontWeight: 'bold',
   },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
   },
   input: {
     borderWidth: 1,
@@ -177,9 +177,10 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     width: 80,
     textAlign: 'center',
-    ...typography.body,
+    fontSize: 16,
     color: colors.text,
     backgroundColor: colors.background,
+    marginRight: spacing.sm,
   },
   inputVerified: {
     borderColor: colors.success,
@@ -194,6 +195,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: 8,
+    marginRight: spacing.sm,
   },
   verifyButtonDisabled: {
     backgroundColor: colors.textSecondary,
@@ -206,18 +208,19 @@ const styles = StyleSheet.create({
   verifiedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    marginRight: spacing.sm,
   },
   verifiedText: {
     color: colors.success,
     fontWeight: '600',
+    marginLeft: 4,
   },
   refreshButton: {
     padding: spacing.sm,
   },
   errorText: {
     color: colors.error,
-    ...typography.bodySmall,
+    fontSize: 14,
     marginTop: spacing.xs,
   },
 });

@@ -1,27 +1,30 @@
-import React, {useState, useEffect, useCallback} from 'react';
+import React, {useState, useEffect, useRef} from 'react';
 import {View, Text, StyleSheet, TouchableOpacity, TextInput} from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import {colors, typography, spacing} from '@config/theme';
+import {colors, spacing} from '@config/theme';
 
 interface CaptchaProps {
   onVerified: (verified: boolean) => void;
-  error?: string;
 }
 
-export function Captcha({onVerified, error}: CaptchaProps) {
-  const [num1, setNum1] = useState(0);
-  const [num2, setNum2] = useState(0);
+export function Captcha({onVerified}: CaptchaProps) {
+  const [num1, setNum1] = useState(() => Math.floor(Math.random() * 10) + 1);
+  const [num2, setNum2] = useState(() => Math.floor(Math.random() * 10) + 1);
   const [operator, setOperator] = useState<'+' | '-'>('+');
   const [userAnswer, setUserAnswer] = useState('');
   const [isVerified, setIsVerified] = useState(false);
   const [showError, setShowError] = useState(false);
+  const onVerifiedRef = useRef(onVerified);
 
-  const generateChallenge = useCallback(() => {
+  useEffect(() => {
+    onVerifiedRef.current = onVerified;
+  }, [onVerified]);
+
+  const generateChallenge = () => {
     const n1 = Math.floor(Math.random() * 10) + 1;
     const n2 = Math.floor(Math.random() * 10) + 1;
     const op = Math.random() > 0.5 ? '+' : '-';
 
-    // Ensure subtraction doesn't result in negative
     if (op === '-' && n2 > n1) {
       setNum1(n2);
       setNum2(n1);
@@ -33,12 +36,8 @@ export function Captcha({onVerified, error}: CaptchaProps) {
     setUserAnswer('');
     setIsVerified(false);
     setShowError(false);
-    onVerified(false);
-  }, [onVerified]);
-
-  useEffect(() => {
-    generateChallenge();
-  }, []);
+    onVerifiedRef.current(false);
+  };
 
   const correctAnswer = operator === '+' ? num1 + num2 : num1 - num2;
 
@@ -47,12 +46,11 @@ export function Captcha({onVerified, error}: CaptchaProps) {
     if (answer === correctAnswer) {
       setIsVerified(true);
       setShowError(false);
-      onVerified(true);
+      onVerifiedRef.current(true);
     } else {
       setShowError(true);
       setIsVerified(false);
-      onVerified(false);
-      // Generate new challenge after wrong answer
+      onVerifiedRef.current(false);
       setTimeout(() => {
         generateChallenge();
       }, 1500);
@@ -60,7 +58,6 @@ export function Captcha({onVerified, error}: CaptchaProps) {
   };
 
   const handleAnswerChange = (text: string) => {
-    // Only allow numbers and minus sign
     const filtered = text.replace(/[^0-9-]/g, '');
     setUserAnswer(filtered);
     setShowError(false);
@@ -90,7 +87,7 @@ export function Captcha({onVerified, error}: CaptchaProps) {
             value={userAnswer}
             onChangeText={handleAnswerChange}
             keyboardType="number-pad"
-            placeholder="Answer"
+            placeholder="?"
             placeholderTextColor={colors.textSecondary}
             maxLength={3}
             editable={!isVerified}
@@ -110,19 +107,13 @@ export function Captcha({onVerified, error}: CaptchaProps) {
             </View>
           )}
 
-          <TouchableOpacity
-            style={styles.refreshButton}
-            onPress={generateChallenge}>
+          <TouchableOpacity style={styles.refreshButton} onPress={generateChallenge}>
             <Icon name="refresh-outline" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
         {showError && (
           <Text style={styles.errorText}>Wrong answer. Try again!</Text>
-        )}
-
-        {error && !isVerified && (
-          <Text style={styles.errorText}>{error}</Text>
         )}
       </View>
     </View>
@@ -133,53 +124,53 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.surface,
     borderRadius: 12,
-    padding: spacing.md,
-    marginVertical: spacing.sm,
+    padding: 16,
+    marginVertical: 8,
     borderWidth: 1,
     borderColor: colors.border,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.sm,
+    marginBottom: 8,
   },
   title: {
-    ...typography.bodySmall,
+    fontSize: 14,
     color: colors.text,
     fontWeight: '600',
-    marginLeft: spacing.xs,
+    marginLeft: 4,
   },
   challengeContainer: {
     alignItems: 'center',
   },
   questionBox: {
     backgroundColor: colors.background,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingHorizontal: 24,
+    paddingVertical: 16,
     borderRadius: 8,
-    marginBottom: spacing.sm,
+    marginBottom: 8,
   },
   questionText: {
-    ...typography.h2,
+    fontSize: 24,
     color: colors.text,
     fontWeight: 'bold',
   },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
   },
   input: {
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 8,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     width: 80,
     textAlign: 'center',
-    ...typography.body,
+    fontSize: 16,
     color: colors.text,
     backgroundColor: colors.background,
+    marginRight: 8,
   },
   inputVerified: {
     borderColor: colors.success,
@@ -191,9 +182,10 @@ const styles = StyleSheet.create({
   },
   verifyButton: {
     backgroundColor: colors.primary,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     borderRadius: 8,
+    marginRight: 8,
   },
   verifyButtonDisabled: {
     backgroundColor: colors.textSecondary,
@@ -206,18 +198,19 @@ const styles = StyleSheet.create({
   verifiedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    marginRight: 8,
   },
   verifiedText: {
     color: colors.success,
     fontWeight: '600',
+    marginLeft: 4,
   },
   refreshButton: {
-    padding: spacing.sm,
+    padding: 8,
   },
   errorText: {
     color: colors.error,
-    ...typography.bodySmall,
-    marginTop: spacing.xs,
+    fontSize: 14,
+    marginTop: 4,
   },
 });
